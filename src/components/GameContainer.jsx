@@ -3,7 +3,9 @@ import { useState, useEffect } from 'react';
 import MainMenu from './MainMenu';
 import HowToPlay from './HowToPlay';
 import Credit from './Credit';
-import Stats from './Stats';
+import CreateRoom from './CreateRoom';
+import WaitingRoom from './WaitingRoom';
+import Game from './Game';
 import { useGameContext } from '../context/GameContext';
 
 const GameContainer = () => {
@@ -58,19 +60,33 @@ const GameContainer = () => {
             onPlay={() => navigateTo('createRoom')}
             onHowToPlay={() => navigateTo('howToPlay')}
             onCredit={() => navigateTo('credit')}
-            onStats={() => navigateTo('stats')}
           />
         );
-      case 'createRoom': return null;
-      case 'waitingRoom': return null;
-      case 'game': return null;
-      
+      case 'createRoom':
+        return (
+          <CreateRoom
+            onBack={() => navigateTo('mainMenu')}
+            onRoomReady={handleRoomReady}
+          />
+        );
+      case 'waitingRoom':
+        return (
+          <WaitingRoom
+            onBack={() => { reset(); navigateTo('createRoom'); }}
+            onStartGame={() => navigateTo('game')}
+            onDisbanded={handleDisbanded}
+          />
+        );
+      case 'game':
+        return (
+          <Game
+            onExit={() => { reset(); navigateTo('mainMenu'); }}
+          />
+        );
       case 'howToPlay':
         return <HowToPlay onBack={() => navigateTo('mainMenu')} />;
       case 'credit':
         return <Credit onBack={() => navigateTo('mainMenu')} />;
-      case 'stats':
-        return <Stats onBack={() => navigateTo('mainMenu')} />;
       default:
         return <MainMenu />;
     }
