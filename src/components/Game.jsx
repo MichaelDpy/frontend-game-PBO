@@ -146,7 +146,7 @@ const Game = ({ onExit }) => {
   const myHeldPowerUp = myPlayer ? myPlayer.heldPowerUp : null;
 
   return (
-    <div className="min-h-screen bg-green-800 flex flex-col select-none overflow-hidden">
+    <div className="min-h-screen w-full bg-green-800 flex flex-col select-none overflow-hidden">
       <TopBar players={players} myId={MY_ID} round={round} />
 
       <div className="flex-1 flex items-center justify-center relative overflow-hidden">

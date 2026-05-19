@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import MainMenu from './MainMenu';
 import HowToPlay from './HowToPlay';
 import Credit from './Credit';
+import Stats from './Stats';
 import CreateRoom from './CreateRoom';
 import WaitingRoom from './WaitingRoom';
 import Game from './Game';
@@ -60,6 +61,7 @@ const GameContainer = () => {
             onPlay={() => navigateTo('createRoom')}
             onHowToPlay={() => navigateTo('howToPlay')}
             onCredit={() => navigateTo('credit')}
+            onStats={() => navigateTo('stats')}
           />
         );
       case 'createRoom':
@@ -87,6 +89,8 @@ const GameContainer = () => {
         return <HowToPlay onBack={() => navigateTo('mainMenu')} />;
       case 'credit':
         return <Credit onBack={() => navigateTo('mainMenu')} />;
+      case 'stats':
+        return <Stats onBack={() => navigateTo('mainMenu')} />;
       default:
         return <MainMenu />;
     }

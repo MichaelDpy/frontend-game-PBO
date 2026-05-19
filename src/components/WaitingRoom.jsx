@@ -32,7 +32,7 @@ const WaitingRoom = ({ onBack, onStartGame }) => {
         <ArrowBackground />
       </div>
 
-      <div className="relative z-10 flex flex-col items-center justify-center min-h-screen p-4 sm:p-8">
+      <div className="relative z-10 flex flex-col items-center justify-center min-h-screen w-full p-4 sm:p-8">
         <h1
           className="font-black text-white text-center mb-4"
           style={{
@@ -61,7 +61,7 @@ const WaitingRoom = ({ onBack, onStartGame }) => {
         </div>
 
         {/* Players Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 w-full max-w-4xl">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 w-full">
           {slots.map((player, i) => (
             <div
               key={i}
