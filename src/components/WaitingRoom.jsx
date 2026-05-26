@@ -170,11 +170,18 @@ const WaitingRoom = ({ onBack, onStartGame, onDisbanded }) => {
           {isHost && (
             <WoodenButton
               text={starting ? 'Memulai...' : 'MULAI GAME'}
-              onClick={handleStartGame}
+              onClick={players.length >= 2 ? handleStartGame : undefined}
+              className={players.length < 2 ? 'opacity-50 cursor-not-allowed' : ''}
             />
           )}
           <WoodenButton text="BACK" onClick={handleBack} />
         </div>
+
+        {isHost && players.length < 2 && (
+          <p className="text-yellow-300 text-sm mt-3 font-semibold">
+            Butuh minimal 2 pemain untuk memulai
+          </p>
+        )}
 
         {!isHost && (
           <p className="text-white/50 text-sm mt-4">Menunggu host memulai game...</p>

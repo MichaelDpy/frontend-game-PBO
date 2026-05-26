@@ -22,13 +22,31 @@ async function fetchJson(url, options = {}) {
       ...(options.headers || {}),
     },
   });
+
+  const text = await res.text();
+
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(text || `HTTP ${res.status}`);
+    // Try to extract message from JSON error body, fall back to raw text
+    if (text) {
+      try {
+        const json = JSON.parse(text);
+        throw new Error(json.message || json.error || text);
+      } catch (parseErr) {
+        if (parseErr instanceof SyntaxError) throw new Error(text);
+        throw parseErr;
+      }
+    }
+    throw new Error(`HTTP ${res.status}`);
   }
-  // 204 No Content
-  if (res.status === 204) return null;
-  return res.json();
+
+  // 204 No Content or empty body
+  if (!text) return null;
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
 }
 
 export const api = {
