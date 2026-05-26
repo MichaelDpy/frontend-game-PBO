@@ -8,6 +8,7 @@ import CreateRoom from './CreateRoom';
 import WaitingRoom from './WaitingRoom';
 import Game from './Game';
 import { useGameContext } from '../context/GameContext';
+import { ws } from '../services/websocket';
 
 const GameContainer = () => {
   const [currentView, setCurrentView] = useState('mainMenu');
@@ -82,7 +83,7 @@ const GameContainer = () => {
       case 'game':
         return (
           <Game
-            onExit={() => { reset(); navigateTo('mainMenu'); }}
+            onExit={() => { ws.disconnect(); reset(); navigateTo('mainMenu'); }}
           />
         );
       case 'howToPlay':

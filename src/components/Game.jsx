@@ -1,9 +1,9 @@
-// components/Game.jsx - OFFLINE MODE
+// components/Game.jsx — ONLINE MODE (backend WebSocket)
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useGameContext } from '../context/GameContext';
-import { useLocalGame } from '../hooks/useLocalGame';
+import { api, ws } from '../services/websocket';
 import {
-  COLOR_MAP, RockSvg, PowerUpBadge, PlayerMower,
+  RockSvg, PowerUpBadge, PlayerMower,
   TopBar, QuizOverlay, GameOverScreen, MobileControls,
 } from './GameParts';
 
@@ -30,14 +30,26 @@ function useCellSize() {
 }
 
 const Game = ({ onExit }) => {
-  const { playerName, mowerColor } = useGameContext();
+  const { myPlayerId, roomCode } = useGameContext();
   const cellSize = useCellSize();
-  const {
-    MY_ID, phase, round, countdown, grassGrid, rockGrid,
-    players, quizState, winnerId, powerUpNotifs, bombs,
-    setDirection, activatePowerUp, answerQuiz, retry,
-  } = useLocalGame(playerName, mowerColor);
 
+  // Game state from backend
+  const [phase, setPhase] = useState('COUNTDOWN');
+  const [round, setRound] = useState(1);
+  const [countdown, setCountdown] = useState(3);
+  const [grassGrid, setGrassGrid] = useState(() =>
+    Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(true))
+  );
+  const [rockGrid, setRockGrid] = useState(() =>
+    Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(false))
+  );
+  const [players, setPlayers] = useState([]);
+  const [quizState, setQuizState] = useState(null);
+  const [winnerId, setWinnerId] = useState(null);
+  const [powerUpNotifs, setPowerUpNotifs] = useState([]);
+  const [bombs, setBombs] = useState([]);
+
+  // Smooth animation
   const [pixelPositions, setPixelPositions] = useState({});
   const pixelRef = useRef({});
   const targetRef = useRef({});
@@ -69,6 +81,49 @@ const Game = ({ onExit }) => {
     )
   );
 
+  // Subscribe to backend game state
+  useEffect(() => {
+    if (!roomCode) return;
+
+    // Reconnect WebSocket if needed (WaitingRoom may have disconnected)
+    if (!ws.isConnected()) {
+      ws.connect(() => {
+        subscribeToRoom();
+      });
+    } else {
+      subscribeToRoom();
+    }
+
+    function subscribeToRoom() {
+      ws.subscribeRoom(roomCode, (data) => {
+        // data = GameStateDto
+        if (data.phase !== undefined) setPhase(data.phase);
+        if (data.round !== undefined) setRound(data.round);
+        if (data.countdownValue !== undefined) setCountdown(data.countdownValue);
+        if (data.grassGrid) setGrassGrid(data.grassGrid);
+        if (data.rockGrid) setRockGrid(data.rockGrid);
+        if (data.players) setPlayers(data.players);
+        if (data.quizState !== undefined) setQuizState(data.quizState);
+        if (data.winnerId !== undefined) setWinnerId(data.winnerId);
+
+        // Extract bombs from players (backend sends activeBombs in GameStateDto if added)
+        if (data.activeBombs) setBombs(data.activeBombs);
+      });
+
+      ws.subscribePowerUp(roomCode, (event) => {
+        // event = PowerUpEventDto { playerId, type, x, y, autoActivated }
+        const notif = { id: Date.now() + Math.random(), playerId: event.playerId, type: event.type };
+        setPowerUpNotifs(prev => [...prev, notif]);
+        setTimeout(() => setPowerUpNotifs(prev => prev.filter(n => n.id !== notif.id)), 2500);
+      });
+    }
+
+    return () => {
+      // Don't disconnect here — let GameContainer handle it on exit
+    };
+  }, [roomCode]);
+
+  // Smooth position interpolation
   useEffect(() => {
     players.forEach(p => {
       const key = String(p.id);
@@ -109,27 +164,44 @@ const Game = ({ onExit }) => {
     return () => cancelAnimationFrame(animFrameRef.current);
   }, []);
 
+  // Send direction input to backend
   const sendDir = useCallback((dir) => {
     const now = Date.now();
     if (now - lastInputRef.current < 50) return;
     lastInputRef.current = now;
-    const opp = { up:'down', down:'up', left:'right', right:'left' };
-    if (opp[dir] !== dirRef.current) {
-      dirRef.current = dir;
-      setDirection(dir);
-    }
-  }, [setDirection]);
+    const opp = { up: 'down', down: 'up', left: 'right', right: 'left' };
+    if (opp[dir] === dirRef.current) return;
+    dirRef.current = dir;
+    ws.sendInput(roomCode, myPlayerId, dir, false);
+  }, [roomCode, myPlayerId]);
 
-  const sendPowerUp = useCallback(() => activatePowerUp(), [activatePowerUp]);
+  // Send power-up activation to backend
+  const sendPowerUp = useCallback(() => {
+    ws.sendInput(roomCode, myPlayerId, null, true);
+  }, [roomCode, myPlayerId]);
+
+  // Send quiz answer to backend
+  const answerQuiz = useCallback((selectedIndex) => {
+    ws.sendQuizAnswer(roomCode, myPlayerId, selectedIndex);
+  }, [roomCode, myPlayerId]);
+
+  // Retry — host calls REST endpoint
+  const retry = useCallback(async () => {
+    try {
+      await api.retryGame(roomCode);
+    } catch (err) {
+      console.error('Retry failed', err);
+    }
+  }, [roomCode]);
 
   const handleKeyDown = useCallback((e) => {
     const map = {
-      ArrowUp:'up', w:'up', W:'up',
-      ArrowDown:'down', s:'down', S:'down',
-      ArrowLeft:'left', a:'left', A:'left',
-      ArrowRight:'right', d:'right', D:'right',
+      ArrowUp: 'up', w: 'up', W: 'up',
+      ArrowDown: 'down', s: 'down', S: 'down',
+      ArrowLeft: 'left', a: 'left', A: 'left',
+      ArrowRight: 'right', d: 'right', D: 'right',
     };
-    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) {
+    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
       e.preventDefault();
     }
     if (e.key === ' ') { sendPowerUp(); return; }
@@ -142,8 +214,9 @@ const Game = ({ onExit }) => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
 
-  const myPlayer = players.find(p => p.id === MY_ID);
-  const myHeldPowerUp = myPlayer ? myPlayer.heldPowerUp : null;
+  const myPlayer = players.find(p => p.id === myPlayerId);
+  const myHeldPowerUp = myPlayer?.heldPowerUp ?? null;
+  const MY_ID = myPlayerId;
 
   return (
     <div className="min-h-screen w-full bg-green-800 flex flex-col select-none overflow-hidden">
@@ -156,19 +229,22 @@ const Game = ({ onExit }) => {
           {Array(GRID_SIZE).fill(null).map((_, y) =>
             Array(GRID_SIZE).fill(null).map((_, x) => {
               const isDark = (x + y) % 2 === 0;
-              const hasGrass = grassGrid && grassGrid[y] ? grassGrid[y][x] : true;
-              const hasRock = rockGrid && rockGrid[y] ? rockGrid[y][x] : false;
+              const hasGrass = grassGrid?.[y]?.[x] ?? true;
+              const hasRock = rockGrid?.[y]?.[x] ?? false;
               return (
                 <div key={`${x}-${y}`} className="absolute overflow-hidden"
-                  style={{ left: x*cellSize, top: y*cellSize, width: cellSize, height: cellSize,
-                    backgroundColor: isDark ? '#8B5E3C' : '#C49A6C' }}>
+                  style={{
+                    left: x * cellSize, top: y * cellSize,
+                    width: cellSize, height: cellSize,
+                    backgroundColor: isDark ? '#8B5E3C' : '#C49A6C',
+                  }}>
                   {hasGrass && !hasRock && (
                     <div className="absolute inset-0">
                       {grassBlades[y][x].map((b, i) => (
                         <div key={i} className="absolute bottom-0 rounded-t-full" style={{
-                          left:`${b.left}%`, width:`${b.width}px`, height:`${b.height}%`,
-                          transform:`rotate(${b.tilt}deg)`, transformOrigin:'bottom center',
-                          background:'linear-gradient(to top,#166534,#22c55e,#86efac)',
+                          left: `${b.left}%`, width: `${b.width}px`, height: `${b.height}%`,
+                          transform: `rotate(${b.tilt}deg)`, transformOrigin: 'bottom center',
+                          background: 'linear-gradient(to top,#166534,#22c55e,#86efac)',
                         }} />
                       ))}
                     </div>
@@ -177,7 +253,7 @@ const Game = ({ onExit }) => {
                     <div className="absolute inset-0">
                       {stubbleBlades[y][x].map((b, i) => (
                         <div key={i} className="absolute bottom-0 rounded-t-full"
-                          style={{ left:`${b.left}%`, width:'2px', height:`${b.height}px`, background:'#166534' }} />
+                          style={{ left: `${b.left}%`, width: '2px', height: `${b.height}px`, background: '#166534' }} />
                       ))}
                     </div>
                   )}
@@ -193,23 +269,25 @@ const Game = ({ onExit }) => {
 
           {players.map(player => {
             const key = String(player.id);
-            const pos = pixelPositions[key] || { x: player.posX*cellSize, y: player.posY*cellSize };
+            const pos = pixelPositions[key] || { x: player.posX * cellSize, y: player.posY * cellSize };
             return (
               <PlayerMower key={player.id} player={player} pos={pos}
                 cellSize={cellSize} isMe={player.id === MY_ID} />
             );
           })}
 
-          {bombs.map(bomb => {
+          {bombs.map((bomb, i) => {
             const now = Date.now();
-            const prog = Math.min(1, (now - bomb.launch) / (bomb.arrival - bomb.launch));
-            const bx = (bomb.fromX + (bomb.toX - bomb.fromX) * prog) * cellSize + cellSize/2;
-            const by = (bomb.fromY + (bomb.toY - bomb.fromY) * prog) * cellSize + cellSize/2;
+            const launch = bomb.launchTime || bomb.launch || now;
+            const arrival = bomb.arrivalTime || bomb.arrival || now + 1500;
+            const prog = Math.min(1, (now - launch) / (arrival - launch));
+            const bx = (bomb.fromX + (bomb.toX - bomb.fromX) * prog) * cellSize + cellSize / 2;
+            const by = (bomb.fromY + (bomb.toY - bomb.fromY) * prog) * cellSize + cellSize / 2;
             const arc = Math.sin(prog * Math.PI) * cellSize * 2;
             return (
-              <div key={bomb.id} className="absolute pointer-events-none"
-                style={{ left: bx-16, top: by-arc-16, zIndex:30, fontSize:24, fontWeight:'bold', color:'#F87171' }}>
-                [B]
+              <div key={i} className="absolute pointer-events-none"
+                style={{ left: bx - 16, top: by - arc - 16, zIndex: 30, fontSize: 24, fontWeight: 'bold', color: '#F87171' }}>
+                💣
               </div>
             );
           })}
@@ -217,21 +295,21 @@ const Game = ({ onExit }) => {
           {powerUpNotifs.map(notif => {
             const p = players.find(pl => pl.id === notif.playerId);
             if (!p) return null;
-            const pos = pixelPositions[String(p.id)] || { x: p.posX*cellSize, y: p.posY*cellSize };
+            const pos = pixelPositions[String(p.id)] || { x: p.posX * cellSize, y: p.posY * cellSize };
             return (
               <div key={notif.id} className="absolute pointer-events-none animate-bounce"
-                style={{ left: pos.x + cellSize/2 - 18, top: pos.y - 44, zIndex:30 }}>
+                style={{ left: pos.x + cellSize / 2 - 18, top: pos.y - 44, zIndex: 30 }}>
                 <PowerUpBadge type={notif.type} size={34} />
               </div>
             );
           })}
 
           {phase === 'COUNTDOWN' && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/40" style={{ zIndex:40 }}>
+            <div className="absolute inset-0 flex items-center justify-center bg-black/40" style={{ zIndex: 40 }}>
               <div className="text-white font-black text-center" style={{
-                fontSize: countdown===0 ? 'clamp(3rem,10vw,5rem)' : 'clamp(5rem,15vw,8rem)',
-                textShadow:'0 0 30px rgba(255,255,0,0.8)',
-                fontFamily:'"Comic Sans MS",sans-serif',
+                fontSize: countdown === 0 ? 'clamp(3rem,10vw,5rem)' : 'clamp(5rem,15vw,8rem)',
+                textShadow: '0 0 30px rgba(255,255,0,0.8)',
+                fontFamily: '"Comic Sans MS",sans-serif',
               }}>
                 {countdown === 0 ? 'START!' : countdown}
               </div>

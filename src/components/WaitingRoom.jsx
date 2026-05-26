@@ -1,30 +1,91 @@
-// components/WaitingRoom.jsx — OFFLINE MODE (no backend)
-import { useState } from 'react';
+// components/WaitingRoom.jsx
+import { useState, useEffect, useRef } from 'react';
 import WoodenButton from './WoodenButton';
 import { useGameContext } from '../context/GameContext';
+import { api, ws } from '../services/websocket';
 
 const COLOR_HEX = {
+  BLUE: '#3B82F6', GREEN: '#16A34A', YELLOW: '#EAB308', RED: '#DC2626',
   blue: '#3B82F6', green: '#16A34A', yellow: '#EAB308', red: '#DC2626',
 };
 
-const WaitingRoom = ({ onBack, onStartGame }) => {
-  const { playerName, mowerColor, roomCode, isHost } = useGameContext();
+const WaitingRoom = ({ onBack, onStartGame, onDisbanded }) => {
+  const { myPlayerId, roomCode, isHost } = useGameContext();
+  const [players, setPlayers] = useState([]);
   const [copied, setCopied] = useState(false);
+  const [error, setError] = useState('');
+  const [starting, setStarting] = useState(false);
+  const navigatedRef = useRef(false);
 
-  const displayName = playerName.trim() || 'Unknown';
-  const roomLink = `${window.location.origin}/room/${roomCode}`;
+  // Connect WebSocket and subscribe to room updates
+  useEffect(() => {
+    if (!roomCode) return;
 
-  // Mock: show only the current player in slot 1, rest empty
-  const slots = [
-    { name: displayName, color: mowerColor.toUpperCase(), host: isHost, isMe: true },
-    null, null, null,
-  ];
+    // Connect WebSocket
+    ws.connect(
+      () => {
+        // Subscribe to room topic — receives RoomDto updates
+        ws.subscribeRoom(roomCode, (data) => {
+          // data is RoomDto: { id, code, status, players, myPlayerId }
+          if (data.players) {
+            setPlayers(data.players);
+          }
+          // If host started the game, navigate all clients to game
+          if (data.status === 'PLAYING' && !navigatedRef.current) {
+            navigatedRef.current = true;
+            onStartGame();
+          }
+          // Room disbanded
+          if (data.status === 'FINISHED') {
+            onDisbanded?.();
+          }
+        });
+      },
+      (err) => {
+        console.error('WS error', err);
+        setError('Koneksi WebSocket gagal');
+      }
+    );
 
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(roomLink);
+    // Also do an initial HTTP fetch to get current player list
+    api.getRoom(roomCode, myPlayerId)
+      .then(data => {
+        if (data.players) setPlayers(data.players);
+      })
+      .catch(() => {});
+
+    return () => {
+      ws.disconnect();
+    };
+  }, [roomCode]);
+
+  const handleStartGame = async () => {
+    if (starting) return;
+    setStarting(true);
+    try {
+      await api.startGame(roomCode);
+      // Navigation happens via WebSocket broadcast (status → PLAYING)
+    } catch (err) {
+      setError(err.message || 'Gagal memulai game');
+      setStarting(false);
+    }
+  };
+
+  const handleBack = async () => {
+    try {
+      if (isHost) await api.disbandRoom(roomCode);
+    } catch (_) {}
+    onBack();
+  };
+
+  const copyCode = () => {
+    navigator.clipboard.writeText(roomCode);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  // Build 4 slots: fill with real players, rest empty
+  const slots = Array(4).fill(null).map((_, i) => players[i] || null);
 
   return (
     <div className="relative min-h-screen overflow-hidden">
@@ -51,17 +112,29 @@ const WaitingRoom = ({ onBack, onStartGame }) => {
           <div className="flex items-center gap-3 justify-center">
             <span className="text-yellow-300 font-black text-2xl tracking-widest">{roomCode}</span>
             <button
-              onClick={copyToClipboard}
+              onClick={copyCode}
               className="px-3 py-1 bg-blue-500 hover:bg-blue-400 text-white rounded-lg font-bold text-sm transition-colors"
             >
-              Copy Link
+              Copy
             </button>
           </div>
-          {copied && <p className="text-blue-200 text-sm font-bold mt-1 text-center">Link disalin!</p>}
+          {copied && <p className="text-blue-200 text-sm font-bold mt-1 text-center">Kode disalin!</p>}
         </div>
 
+        {/* Player count */}
+        <p className="text-white/70 text-sm mb-4">
+          {players.length}/4 pemain · {players.length < 2 ? 'Menunggu pemain lain...' : 'Siap bermain!'}
+        </p>
+
+        {/* Error */}
+        {error && (
+          <div className="mb-4 px-4 py-2 bg-red-500/40 border border-red-400 rounded-lg">
+            <p className="text-red-200 text-sm font-semibold text-center">{error}</p>
+          </div>
+        )}
+
         {/* Players Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 w-full">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 w-full max-w-2xl">
           {slots.map((player, i) => (
             <div
               key={i}
@@ -74,12 +147,12 @@ const WaitingRoom = ({ onBack, onStartGame }) => {
                   <div className="h-12 flex items-center justify-center mb-3">
                     <p className="text-white font-bold text-base text-center leading-tight">
                       {player.name}
-                      {player.host && <span className="text-yellow-300 text-sm block">(Host)</span>}
-                      {player.isMe && <span className="text-green-300 text-xs block">(Kamu)</span>}
+                      {player.isHost && <span className="text-yellow-300 text-sm block">👑 Host</span>}
+                      {player.id === myPlayerId && <span className="text-green-300 text-xs block">(Kamu)</span>}
                     </p>
                   </div>
                   <div className="flex-1 flex items-center justify-center">
-                    <MiniLawnMower color={COLOR_HEX[player.color.toLowerCase()] || '#16A34A'} />
+                    <MiniLawnMower color={COLOR_HEX[player.color] || '#16A34A'} />
                   </div>
                 </>
               ) : (
@@ -94,9 +167,18 @@ const WaitingRoom = ({ onBack, onStartGame }) => {
 
         {/* Buttons */}
         <div className="flex gap-4 flex-wrap justify-center">
-          <WoodenButton text="MULAI GAME" onClick={onStartGame} />
-          <WoodenButton text="BACK" onClick={onBack} />
+          {isHost && (
+            <WoodenButton
+              text={starting ? 'Memulai...' : 'MULAI GAME'}
+              onClick={handleStartGame}
+            />
+          )}
+          <WoodenButton text="BACK" onClick={handleBack} />
         </div>
+
+        {!isHost && (
+          <p className="text-white/50 text-sm mt-4">Menunggu host memulai game...</p>
+        )}
       </div>
     </div>
   );

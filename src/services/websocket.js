@@ -72,18 +72,22 @@ export const api = {
     });
   },
 
+  async getMyStats() {
+    return fetchJson(`${API_URL}/auth/me/stats`);
+  },
+
   // ---- Room ----
-  async createRoom(playerName, color) {
+  async createRoom(playerName, color, accountUsername = null) {
     return fetchJson(`${API_URL}/rooms`, {
       method: 'POST',
-      body: JSON.stringify({ playerName, color: color.toUpperCase() }),
+      body: JSON.stringify({ playerName, color: color.toUpperCase(), accountUsername }),
     });
   },
 
-  async joinRoom(playerName, color, roomCode) {
+  async joinRoom(playerName, color, roomCode, accountUsername = null) {
     return fetchJson(`${API_URL}/rooms/join`, {
       method: 'POST',
-      body: JSON.stringify({ playerName, color: color.toUpperCase(), roomCode }),
+      body: JSON.stringify({ playerName, color: color.toUpperCase(), roomCode, accountUsername }),
     });
   },
 
