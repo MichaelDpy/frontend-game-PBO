@@ -158,7 +158,8 @@ const Game = ({ onExit }) => {
   const [players, setPlayers] = useState([]);
   const [quizState, setQuizState] = useState(null);
   const [winnerId, setWinnerId] = useState(null);
-  const [powerUpNotifs, setPowerUpNotifs] = useState([]);
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [powerUpNotifs, setPowerUpNotifs] = useState({});  // { [playerId]: { type, id } }
   const [bombs, setBombs] = useState([]);
 
   // Smooth animation
@@ -217,6 +218,7 @@ const Game = ({ onExit }) => {
         if (data.players) setPlayers(data.players);
         if (data.quizState !== undefined) setQuizState(data.quizState);
         if (data.winnerId !== undefined) setWinnerId(data.winnerId);
+        if (data.leaderboard) setLeaderboard(data.leaderboard);
 
         // Extract bombs from players (backend sends activeBombs in GameStateDto if added)
         if (data.activeBombs) setBombs(data.activeBombs);
@@ -224,9 +226,20 @@ const Game = ({ onExit }) => {
 
       ws.subscribePowerUp(roomCode, (event) => {
         // event = PowerUpEventDto { playerId, type, x, y, autoActivated }
-        const notif = { id: Date.now() + Math.random(), playerId: event.playerId, type: event.type };
-        setPowerUpNotifs(prev => [...prev, notif]);
-        setTimeout(() => setPowerUpNotifs(prev => prev.filter(n => n.id !== notif.id)), 2500);
+        // Only show 1 notif per player at a time — replace any existing one
+        const notifId = Date.now();
+        setPowerUpNotifs(prev => ({ ...prev, [event.playerId]: { type: event.type, id: notifId } }));
+        setTimeout(() => {
+          setPowerUpNotifs(prev => {
+            const cur = prev[event.playerId];
+            if (cur && cur.id === notifId) {
+              const next = { ...prev };
+              delete next[event.playerId];
+              return next;
+            }
+            return prev;
+          });
+        }, 1200);
       });
     }
 
@@ -404,17 +417,30 @@ const Game = ({ onExit }) => {
             );
           })}
 
-          {powerUpNotifs.map(notif => {
-            const p = players.find(pl => pl.id === notif.playerId);
+          {Object.entries(powerUpNotifs).map(([playerId, notif]) => {
+            const p = players.find(pl => String(pl.id) === String(playerId));
             if (!p) return null;
             const pos = pixelPositions[String(p.id)] || { x: p.posX * cellSize, y: p.posY * cellSize };
             return (
-              <div key={notif.id} className="absolute pointer-events-none animate-bounce"
-                style={{ left: pos.x + cellSize / 2 - 18, top: pos.y - 44, zIndex: 30 }}>
+              <div key={notif.id} className="absolute pointer-events-none"
+                style={{
+                  left: pos.x + cellSize / 2 - 17,
+                  top: pos.y - 10,
+                  zIndex: 30,
+                  animation: 'powerUpFloat 1.2s ease-out forwards',
+                }}>
                 <PowerUpIcon type={notif.type} size={34} />
               </div>
             );
           })}
+
+          <style>{`
+            @keyframes powerUpFloat {
+              0%   { opacity: 1; transform: translateY(0px) scale(1); }
+              60%  { opacity: 1; transform: translateY(-40px) scale(1.15); }
+              100% { opacity: 0; transform: translateY(-70px) scale(0.8); }
+            }
+          `}</style>
 
           {phase === 'COUNTDOWN' && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/40" style={{ zIndex: 40 }}>
@@ -442,7 +468,7 @@ const Game = ({ onExit }) => {
       </div>
 
       {phase === 'GAME_OVER' && (
-        <GameOverScreen players={players} winnerId={winnerId} myId={MY_ID}
+        <GameOverScreen players={players} leaderboard={leaderboard} winnerId={winnerId} myId={MY_ID}
           round={round} onRetry={retry} onExit={onExit} />
       )}
     </div>

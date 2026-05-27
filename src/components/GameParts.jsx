@@ -162,7 +162,7 @@ export const TopBar = ({ players, myId, round, isMuted, onToggleMute }) => (
               {player.name}{player.id===myId?' *':''}
             </p>
             <p className="text-yellow-400 font-bold" style={{ fontSize:'clamp(8px,1.2vw,11px)' }}>
-              {player.grassCut} grass
+              {player.grassCutThisRound ?? player.grassCut} grass
             </p>
             <div className="flex justify-center gap-0.5">
               {[0,1].map(i => (
@@ -269,8 +269,12 @@ export const QuizOverlay = ({ quizState, myId, onAnswer }) => {
   );
 };
 
-export const GameOverScreen = ({ players, winnerId, myId, round, onRetry, onExit }) => {
-  const winner = players ? players.find(p => p.id === winnerId) : null;
+export const GameOverScreen = ({ players, leaderboard, winnerId, myId, round, onRetry, onExit }) => {
+  const ranked = leaderboard && leaderboard.length > 0 ? leaderboard : (players || []);
+  const winner = ranked[0] || null;
+
+  const rankMedal = ['🥇', '🥈', '🥉', '4️⃣'];
+
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
       <div className="absolute inset-0 bg-blue-800 opacity-80" />
@@ -278,24 +282,45 @@ export const GameOverScreen = ({ players, winnerId, myId, round, onRetry, onExit
         <h1 className="font-black text-white mb-3"
           style={{ fontFamily:'"Comic Sans MS",sans-serif',
             fontSize:'clamp(2.5rem,8vw,4rem)', textShadow:'4px 4px 0 #1e40af' }}>
-          ROUND OVER
+          GAME OVER
         </h1>
+
         {winner && (
           <div className="bg-yellow-400/20 border-4 border-yellow-400 rounded-2xl p-4 mb-4">
-            <p className="text-yellow-300 text-xl font-black mb-1">Pemenang!</p>
+            <p className="text-yellow-300 text-xl font-black mb-1">🏆 Pemenang!</p>
             <MiniMowerIcon color={COLOR_MAP[winner.color]||'#16A34A'} crashed={false} />
-            <p className="text-white text-2xl font-black mt-1">{winner.name}</p>
-            <p className="text-white/80 text-sm">Total Rumput: {winner.grassCut} | {round} Ronde</p>
+            <p className="text-white text-2xl font-black mt-1">{winner.name}{winner.id===myId?' (Kamu)':''}</p>
+            <p className="text-white/80 text-sm mt-1">
+              {winner.roundsSurvived} ronde · {winner.grassCut} rumput
+            </p>
           </div>
         )}
-        <div className="grid grid-cols-2 gap-2 mb-4">
-          {(players||[]).map(p => (
-            <div key={p.id} className={`p-2 rounded-xl border-2 ${p.id===winnerId?'border-yellow-400 bg-yellow-400/10':'border-white/20 bg-white/10'}`}>
-              <p className="text-white font-bold text-sm">{p.name}{p.id===myId?' (Kamu)':''}</p>
-              <p className="text-green-300 text-xs">{p.grassCut} rumput</p>
+
+        {/* Leaderboard */}
+        <div className="bg-white/10 rounded-2xl border-2 border-white/20 overflow-hidden mb-4">
+          <div className="bg-white/10 px-4 py-2 border-b border-white/20">
+            <p className="text-yellow-300 font-black text-sm tracking-widest">PAPAN PERINGKAT</p>
+          </div>
+          {ranked.map((p, i) => (
+            <div key={p.id}
+              className={`flex items-center gap-3 px-4 py-3 border-b border-white/10 last:border-b-0 ${
+                p.id === myId ? 'bg-yellow-400/10' : ''
+              }`}>
+              <span className="text-2xl w-8 flex-shrink-0">{rankMedal[i] || `${i+1}.`}</span>
+              <MiniMowerIcon color={COLOR_MAP[p.color]||'#16A34A'} crashed={false} />
+              <div className="flex-1 text-left min-w-0">
+                <p className="text-white font-bold text-sm truncate">
+                  {p.name}{p.id===myId?' (Kamu)':''}
+                </p>
+                <p className="text-white/60 text-xs">
+                  {p.roundsSurvived} ronde · {p.grassCut} rumput
+                </p>
+              </div>
+              {i === 0 && <span className="text-yellow-300 font-black text-xs">WINNER</span>}
             </div>
           ))}
         </div>
+
         <div className="flex gap-3 justify-center flex-wrap">
           <button onClick={onRetry}
             className="px-6 py-3 bg-green-500 hover:bg-green-400 text-white font-black text-lg rounded-xl border-4 border-green-300 transition-all">

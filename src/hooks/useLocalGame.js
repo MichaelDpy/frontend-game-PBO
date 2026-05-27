@@ -65,6 +65,20 @@ function generateSpawnPoints(count) {
   return corners.slice(0, count);
 }
 
+// Arah menghadap ke tengah grid berdasarkan posisi spawn
+function spawnDirection(x, y) {
+  const cx = GRID_SIZE / 2;
+  const cy = GRID_SIZE / 2;
+  const dx = cx - x;
+  const dy = cy - y;
+  // Pilih arah horizontal atau vertikal yang lebih dominan
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    return dx > 0 ? 'right' : 'left';
+  } else {
+    return dy > 0 ? 'down' : 'up';
+  }
+}
+
 function isOpposite(a, b) {
   return (a === 'up' && b === 'down') || (a === 'down' && b === 'up') ||
          (a === 'left' && b === 'right') || (a === 'right' && b === 'left');
@@ -89,7 +103,7 @@ function makePlayers(myName, myColor) {
     isHost: true,
     posX: spawn[0],
     posY: spawn[1],
-    direction: 'right',
+    direction: spawnDirection(spawn[0], spawn[1]),
     alive: true,
     crashed: false,
     lives: 2,
@@ -495,7 +509,6 @@ export function useLocalGame(myName, myColor) {
 
     // Reset player positions — crashed players respawn too
     const spawns = generateSpawnPoints(ps.filter(p => p.alive).length);
-    const dirs = ['right', 'left', 'down', 'up'];
     let si = 0;
     const respawned = ps.map(p => {
       if (!p.alive) return p;
@@ -503,7 +516,7 @@ export function useLocalGame(myName, myColor) {
       return {
         ...p,
         posX: sp[0], posY: sp[1],
-        direction: dirs[si % 4],
+        direction: spawnDirection(sp[0], sp[1]),
         crashed: false,          // un-crash on new round
         heldPowerUp: null,
         speedBoosted: false,

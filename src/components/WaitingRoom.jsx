@@ -62,9 +62,11 @@ const WaitingRoom = ({ onBack, onStartGame, onDisbanded }) => {
   const handleStartGame = async () => {
     if (starting) return;
     setStarting(true);
+    setError('');
     try {
       await api.startGame(roomCode);
-      // Navigation happens via WebSocket broadcast (status → PLAYING)
+      // Don't navigate here — wait for the WS broadcast with status === 'PLAYING'
+      // so all players (including non-host) navigate at the same time
     } catch (err) {
       setError(err.message || 'Gagal memulai game');
       setStarting(false);
@@ -170,18 +172,11 @@ const WaitingRoom = ({ onBack, onStartGame, onDisbanded }) => {
           {isHost && (
             <WoodenButton
               text={starting ? 'Memulai...' : 'MULAI GAME'}
-              onClick={players.length >= 2 ? handleStartGame : undefined}
-              className={players.length < 2 ? 'opacity-50 cursor-not-allowed' : ''}
+              onClick={handleStartGame}
             />
           )}
           <WoodenButton text="BACK" onClick={handleBack} />
         </div>
-
-        {isHost && players.length < 2 && (
-          <p className="text-yellow-300 text-sm mt-3 font-semibold">
-            Butuh minimal 2 pemain untuk memulai
-          </p>
-        )}
 
         {!isHost && (
           <p className="text-white/50 text-sm mt-4">Menunggu host memulai game...</p>
