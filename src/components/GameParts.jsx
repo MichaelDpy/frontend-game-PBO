@@ -12,16 +12,62 @@ export const RockSvg = ({ size }) => (
   </svg>
 );
 
+// ---- Power-up SVG Icons ----
+export const PowerUpIcon = ({ type, size = 28 }) => {
+  if (type === 'ROCK') {
+    return (
+      <svg width={size} height={size} viewBox="0 0 40 40">
+        {/* Rock power-up: grey boulder */}
+        <ellipse cx="20" cy="26" rx="15" ry="11" fill="#4B5563" stroke="#1F2937" strokeWidth="2" />
+        <ellipse cx="20" cy="24" rx="13" ry="9" fill="#6B7280" />
+        <ellipse cx="14" cy="19" rx="5" ry="3" fill="#9CA3AF" opacity="0.7" />
+        <ellipse cx="24" cy="22" rx="3" ry="2" fill="#9CA3AF" opacity="0.5" />
+      </svg>
+    );
+  }
+  if (type === 'SPEED_BOOST') {
+    return (
+      <svg width={size} height={size} viewBox="0 0 40 40">
+        {/* Speed boost: lightning bolt */}
+        <polygon points="22,4 12,22 20,22 18,36 28,18 20,18" fill="#FCD34D" stroke="#D97706" strokeWidth="1.5" strokeLinejoin="round" />
+        <polygon points="22,4 12,22 20,22 18,36 28,18 20,18" fill="url(#bolt-grad)" />
+        <defs>
+          <linearGradient id="bolt-grad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#FEF08A" />
+            <stop offset="100%" stopColor="#F59E0B" />
+          </linearGradient>
+        </defs>
+      </svg>
+    );
+  }
+  if (type === 'BOMB') {
+    return (
+      <svg width={size} height={size} viewBox="0 0 40 40">
+        {/* Bomb: round bomb with fuse */}
+        <circle cx="20" cy="24" r="13" fill="#1F2937" stroke="#374151" strokeWidth="2" />
+        <circle cx="20" cy="24" r="11" fill="#374151" />
+        <circle cx="15" cy="19" r="3" fill="#6B7280" opacity="0.5" />
+        {/* Fuse */}
+        <path d="M20 11 Q26 6 30 8" stroke="#D97706" strokeWidth="2.5" fill="none" strokeLinecap="round" />
+        {/* Spark */}
+        <circle cx="30" cy="8" r="2.5" fill="#FCD34D" />
+        <circle cx="30" cy="8" r="1.5" fill="#FEF08A" />
+      </svg>
+    );
+  }
+  // Empty slot
+  return (
+    <svg width={size} height={size} viewBox="0 0 40 40">
+      <circle cx="20" cy="20" r="14" fill="none" stroke="#4B5563" strokeWidth="2" strokeDasharray="4 3" />
+      <text x="20" y="25" textAnchor="middle" fontSize="14" fill="#6B7280">?</text>
+    </svg>
+  );
+};
+
 export const PowerUpBadge = ({ type, size }) => {
   const sz = size || 24;
-  const labels = { ROCK:'ROCK', SPEED_BOOST:'SPD', BOMB:'BOMB' };
-  const colors = { ROCK:'#9CA3AF', SPEED_BOOST:'#FCD34D', BOMB:'#F87171' };
-  if (!type) return <span style={{ fontSize: sz * 0.6, color:'#6B7280' }}>-</span>;
-  return (
-    <span style={{ fontSize: sz * 0.55, fontWeight:900, color: colors[type]||'#fff', letterSpacing:'-0.5px' }}>
-      {labels[type]||'?'}
-    </span>
-  );
+  if (!type) return <PowerUpIcon type={null} size={sz} />;
+  return <PowerUpIcon type={type} size={sz} />;
 };
 
 export const MiniMowerIcon = ({ color, crashed }) => (
@@ -103,7 +149,7 @@ export const PlayerMower = ({ player, pos, cellSize, isMe }) => {
   );
 };
 
-export const TopBar = ({ players, myId, round }) => (
+export const TopBar = ({ players, myId, round, isMuted, onToggleMute }) => (
   <div className="bg-green-900 text-white shadow-lg relative flex-shrink-0">
     <div className="flex items-stretch" style={{ minHeight:72 }}>
       {(players||[]).map(player => (
@@ -125,16 +171,52 @@ export const TopBar = ({ players, myId, round }) => (
                   : <FaHeartBroken key={i} style={{ color:'#6B7280', fontSize:'clamp(9px,1.5vw,14px)' }} />
               ))}
             </div>
-            {player.heldPowerUp && <PowerUpBadge type={player.heldPowerUp} size={12} />}
+            {/* Power-up icon slot */}
+            <div className="flex justify-center items-center mt-0.5">
+              <div style={{
+                background: player.heldPowerUp ? 'rgba(234,179,8,0.25)' : 'rgba(255,255,255,0.05)',
+                border: `1.5px solid ${player.heldPowerUp ? 'rgba(253,224,71,0.6)' : 'rgba(255,255,255,0.15)'}`,
+                borderRadius: 6,
+                padding: '1px 3px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minWidth: 22,
+                minHeight: 22,
+              }}>
+                <PowerUpBadge type={player.heldPowerUp} size={18} />
+              </div>
+            </div>
           </div>
         </div>
       ))}
     </div>
+    {/* Round badge */}
     <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none">
       <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-yellow-400 border-4 border-white flex items-center justify-center shadow-lg">
         <span className="text-black font-black text-sm sm:text-lg">{round}</span>
       </div>
     </div>
+    {/* Mute button — top right */}
+    {onToggleMute && (
+      <button
+        onClick={onToggleMute}
+        title={isMuted ? 'Nyalakan Musik' : 'Matikan Musik'}
+        aria-label={isMuted ? 'Nyalakan Musik' : 'Matikan Musik'}
+        className="absolute top-2 right-2 w-8 h-8 flex items-center justify-center rounded-lg bg-green-800 hover:bg-green-700 border border-green-600 transition-colors z-10"
+        style={{ flexShrink: 0 }}
+      >
+        {isMuted ? (
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" width="16" height="16">
+            <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>
+          </svg>
+        ) : (
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" width="16" height="16">
+            <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+          </svg>
+        )}
+      </button>
+    )}
   </div>
 );
 
@@ -249,7 +331,10 @@ export const MobileControls = ({ onDirection, onActivatePowerUp, heldPowerUp, ph
       border:'2px solid rgba(147,197,253,0.7)', fontSize:22, opacity: isPlaying ? 1 : 0.4,
     }}>{label}</div>
   );
-  const puLabel = heldPowerUp==='ROCK'?'BATU':heldPowerUp==='BOMB'?'BOM':heldPowerUp==='SPEED_BOOST'?'BOOST':'';
+
+  const puLabels = { ROCK:'BATU', BOMB:'BOM', SPEED_BOOST:'BOOST' };
+  const puLabel = heldPowerUp ? puLabels[heldPowerUp] || '' : '';
+
   return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between',
       padding:'4px 16px 12px', background:'rgba(0,0,0,0.35)', minHeight:140 }}>
@@ -274,7 +359,7 @@ export const MobileControls = ({ onDirection, onActivatePowerUp, heldPowerUp, ph
           border:`3px solid ${heldPowerUp?'rgba(253,224,71,0.9)':'rgba(253,224,71,0.3)'}`,
           opacity: isPlaying ? 1 : 0.4,
         }}>
-          <PowerUpBadge type={heldPowerUp} size={28} />
+          <PowerUpIcon type={heldPowerUp} size={36} />
           {puLabel && <span style={{ fontSize:9, color:'#1a1a1a', fontWeight:900 }}>{puLabel}</span>}
         </div>
         <p style={{ color:'rgba(255,255,255,0.4)', fontSize:10 }}>{heldPowerUp ? '' : 'Kosong'}</p>
