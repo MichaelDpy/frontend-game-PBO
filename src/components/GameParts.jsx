@@ -118,13 +118,14 @@ export const MowerSvg = ({ direction, color, cellSize }) => {
 export const PlayerMower = ({ player, pos, cellSize, isMe }) => {
   const color = COLOR_MAP[player.color] || '#16A34A';
   const dir = player.direction || 'right';
+  const isStunned = player.stunned && player.stunEndTime > Date.now();
   return (
     <div className="absolute" style={{
       left: pos.x, top: pos.y, width: cellSize, height: cellSize,
       zIndex: 10, willChange: 'left,top',
-      filter: player.crashed ? 'grayscale(1) brightness(0.5)' : 'none',
+      filter: player.crashed ? 'grayscale(1) brightness(0.5)' : isStunned ? 'brightness(0.7) saturate(0.5)' : 'none',
     }}>
-      {player.speedBoosted && !player.crashed && (
+      {player.speedBoosted && !player.crashed && !isStunned && (
         <div className="absolute inset-0 pointer-events-none" style={{ zIndex:20 }}>
           {[0,1,2,3,4].map(i => (
             <div key={i} className="absolute rounded-full bg-cyan-300/60" style={{
@@ -134,9 +135,24 @@ export const PlayerMower = ({ player, pos, cellSize, isMe }) => {
           ))}
         </div>
       )}
+      {/* Spinning stars stun animation */}
+      {isStunned && !player.crashed && (
+        <div className="absolute pointer-events-none" style={{
+          zIndex: 25, top: -cellSize * 0.55, left: '50%', transform: 'translateX(-50%)',
+          width: cellSize * 1.1, height: cellSize * 0.55,
+        }}>
+          {[0,1,2,3].map(i => (
+            <div key={i} className="absolute" style={{
+              fontSize: Math.max(10, cellSize * 0.22),
+              animation: `stunOrbit 0.8s ${i * 0.2}s linear infinite`,
+              transformOrigin: `${cellSize * 0.55}px ${cellSize * 0.27}px`,
+            }}>⭐</div>
+          ))}
+        </div>
+      )}
       {isMe && !player.crashed && (
         <div className="absolute -top-4 left-1/2 -translate-x-1/2 text-yellow-300 font-black"
-          style={{ fontSize:'clamp(8px,1.5vw,12px)', zIndex:20 }}>v</div>
+          style={{ fontSize:'clamp(8px,1.5vw,12px)', zIndex:20 }}>▼</div>
       )}
       {player.crashed
         ? <svg width={cellSize} height={cellSize} viewBox="0 0 60 60">
@@ -144,7 +160,10 @@ export const PlayerMower = ({ player, pos, cellSize, isMe }) => {
           </svg>
         : <MowerSvg direction={dir} color={color} cellSize={cellSize} />
       }
-      <style>{`@keyframes windLine{0%{opacity:.8;transform:translateX(0)}100%{opacity:0;transform:translateX(${dir==='left'?'12px':'-12px'})}}`}</style>
+      <style>{`
+        @keyframes windLine{0%{opacity:.8;transform:translateX(0)}100%{opacity:0;transform:translateX(${dir==='left'?'12px':'-12px'})}}
+        @keyframes stunOrbit{0%{transform:rotate(0deg) translateX(${Math.max(8,cellSize*0.18)}px)}100%{transform:rotate(360deg) translateX(${Math.max(8,cellSize*0.18)}px)}}
+      `}</style>
     </div>
   );
 };
@@ -159,7 +178,7 @@ export const TopBar = ({ players, myId, round, isMuted, onToggleMute }) => (
           <MiniMowerIcon color={COLOR_MAP[player.color]||'#16A34A'} crashed={player.crashed} />
           <div className="text-center min-w-0">
             <p className="font-bold truncate" style={{ fontSize:'clamp(9px,1.5vw,13px)' }}>
-              {player.name}{player.id===myId?' *':''}
+              {player.name}{player.id===myId?' (Kamu)':''}
             </p>
             <p className="text-yellow-400 font-bold" style={{ fontSize:'clamp(8px,1.2vw,11px)' }}>
               {player.grassCutThisRound ?? player.grassCut} grass
@@ -222,8 +241,21 @@ export const TopBar = ({ players, myId, round, isMuted, onToggleMute }) => (
 
 export const QuizOverlay = ({ quizState, myId, onAnswer }) => {
   const isTarget = quizState.targetPlayerId === myId;
-  const timeLeft = Math.ceil(quizState.timeRemainingMs / 1000);
   const answered = quizState.answered;
+
+  // Local countdown that ticks every second from the server-provided timeRemainingMs
+  const [timeLeft, setTimeLeft] = useState(Math.ceil((quizState.timeRemainingMs ?? 10000) / 1000));
+  useEffect(() => {
+    setTimeLeft(Math.ceil((quizState.timeRemainingMs ?? 10000) / 1000));
+  }, [quizState.targetPlayerId]); // reset when a new quiz starts
+
+  useEffect(() => {
+    if (answered !== null && answered !== undefined) return; // stop ticking after answered
+    if (timeLeft <= 0) return;
+    const t = setTimeout(() => setTimeLeft(s => Math.max(0, s - 1)), 1000);
+    return () => clearTimeout(t);
+  }, [timeLeft, answered]);
+
   return (
     <div className="absolute inset-0 bg-black/70 flex items-center justify-center z-50 p-3">
       <div className="bg-green-900 border-4 border-yellow-400 rounded-2xl p-4 sm:p-6 w-full max-w-lg shadow-2xl">
