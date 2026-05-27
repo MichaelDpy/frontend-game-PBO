@@ -17,7 +17,6 @@ export const PowerUpIcon = ({ type, size = 28 }) => {
   if (type === 'ROCK') {
     return (
       <svg width={size} height={size} viewBox="0 0 40 40">
-        {/* Rock power-up: grey boulder */}
         <ellipse cx="20" cy="26" rx="15" ry="11" fill="#4B5563" stroke="#1F2937" strokeWidth="2" />
         <ellipse cx="20" cy="24" rx="13" ry="9" fill="#6B7280" />
         <ellipse cx="14" cy="19" rx="5" ry="3" fill="#9CA3AF" opacity="0.7" />
@@ -28,7 +27,6 @@ export const PowerUpIcon = ({ type, size = 28 }) => {
   if (type === 'SPEED_BOOST') {
     return (
       <svg width={size} height={size} viewBox="0 0 40 40">
-        {/* Speed boost: lightning bolt */}
         <polygon points="22,4 12,22 20,22 18,36 28,18 20,18" fill="#FCD34D" stroke="#D97706" strokeWidth="1.5" strokeLinejoin="round" />
         <polygon points="22,4 12,22 20,22 18,36 28,18 20,18" fill="url(#bolt-grad)" />
         <defs>
@@ -43,19 +41,15 @@ export const PowerUpIcon = ({ type, size = 28 }) => {
   if (type === 'BOMB') {
     return (
       <svg width={size} height={size} viewBox="0 0 40 40">
-        {/* Bomb: round bomb with fuse */}
         <circle cx="20" cy="24" r="13" fill="#1F2937" stroke="#374151" strokeWidth="2" />
         <circle cx="20" cy="24" r="11" fill="#374151" />
         <circle cx="15" cy="19" r="3" fill="#6B7280" opacity="0.5" />
-        {/* Fuse */}
         <path d="M20 11 Q26 6 30 8" stroke="#D97706" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-        {/* Spark */}
         <circle cx="30" cy="8" r="2.5" fill="#FCD34D" />
         <circle cx="30" cy="8" r="1.5" fill="#FEF08A" />
       </svg>
     );
   }
-  // Empty slot
   return (
     <svg width={size} height={size} viewBox="0 0 40 40">
       <circle cx="20" cy="20" r="14" fill="none" stroke="#4B5563" strokeWidth="2" strokeDasharray="4 3" />
@@ -119,12 +113,13 @@ export const PlayerMower = ({ player, pos, cellSize, isMe }) => {
   const color = COLOR_MAP[player.color] || '#16A34A';
   const dir = player.direction || 'right';
   const isStunned = player.stunned && player.stunEndTime > Date.now();
+  
   return (
     <div className="absolute" style={{
       left: pos.x, top: pos.y, width: cellSize, height: cellSize,
       zIndex: 10, willChange: 'left,top',
-      filter: player.crashed ? 'grayscale(1) brightness(0.5)' : isStunned ? 'brightness(0.7) saturate(0.5)' : 'none',
     }}>
+      {/* Efek Garis Angin Kecepatan Tinggi */}
       {player.speedBoosted && !player.crashed && !isStunned && (
         <div className="absolute inset-0 pointer-events-none" style={{ zIndex:20 }}>
           {[0,1,2,3,4].map(i => (
@@ -135,10 +130,11 @@ export const PlayerMower = ({ player, pos, cellSize, isMe }) => {
           ))}
         </div>
       )}
-      {/* Spinning stars stun animation */}
+
+      {/* ANIMASI BINTANG BERPUTAR (Kena Bom / Stunned) — Model Utama Tetap Normal */}
       {isStunned && !player.crashed && (
         <div className="absolute pointer-events-none" style={{
-          zIndex: 25, top: -cellSize * 0.55, left: '50%', transform: 'translateX(-50%)',
+          zIndex: 40, top: -cellSize * 0.55, left: '50%', transform: 'translateX(-50%)',
           width: cellSize * 1.1, height: cellSize * 0.55,
         }}>
           {[0,1,2,3].map(i => (
@@ -150,19 +146,45 @@ export const PlayerMower = ({ player, pos, cellSize, isMe }) => {
           ))}
         </div>
       )}
+
+      {/* Penunjuk Segitiga untuk Karakter Utama */}
       {isMe && !player.crashed && (
         <div className="absolute -top-4 left-1/2 -translate-x-1/2 text-yellow-300 font-black"
           style={{ fontSize:'clamp(8px,1.5vw,12px)', zIndex:20 }}>▼</div>
       )}
-      {player.crashed
-        ? <svg width={cellSize} height={cellSize} viewBox="0 0 60 60">
-            <text x="5" y="45" fontSize="36" fill="#EF4444">X</text>
+
+      {/* LOGIC REVISI MODEL MESIN */}
+      {player.crashed ? (
+        // MODEL MESIN HANCUR BERASAP (Menggantikan Tanda Huruf "X" merah tua lama)
+        <div className="relative w-full h-full flex items-center justify-center scale-95">
+          {/* Efek partikel asap hitam mengepul keluar dari mesin hancur */}
+          <div className="absolute top-0 left-1/4 w-3 h-3 bg-gray-600 rounded-full blur-xs opacity-70" style={{ animation: 'smokeUp 0.8s ease-out infinite' }} />
+          <div className="absolute top-1 left-1/2 w-4 h-4 bg-gray-500 rounded-full blur-xs opacity-60" style={{ animation: 'smokeUp 1s ease-out infinite 0.2s' }} />
+          
+          <svg width={cellSize} height={cellSize} viewBox="0 0 60 60" style={{ filter: 'grayscale(0.8) brightness(0.4)' }}>
+            <g transform="rotate(15 30 30)">
+              <MowerSvg direction={dir} color={color} cellSize={cellSize} />
+            </g>
+            {/* Tekstur Retakan Hancur Lebur */}
+            <path d="M15 20 L25 35 L18 50 M45 15 L35 30 L42 45" stroke="#EF4444" strokeWidth="3" fill="none" strokeLinecap="round" />
           </svg>
-        : <MowerSvg direction={dir} color={color} cellSize={cellSize} />
-      }
+        </div>
+      ) : (
+        // MODEL MESIN NORMAL (Berlaku saat jalan biasa ataupun kena stun bom karena model tetap sama)
+        <div style={{ filter: isStunned ? 'brightness(0.7) saturate(0.5) sepia(0.2)' : 'none' }}>
+          <MowerSvg direction={dir} color={color} cellSize={cellSize} />
+        </div>
+      )}
+
+      {/* Kumpulan Keyframe Animasi Baru */}
       <style>{`
         @keyframes windLine{0%{opacity:.8;transform:translateX(0)}100%{opacity:0;transform:translateX(${dir==='left'?'12px':'-12px'})}}
         @keyframes stunOrbit{0%{transform:rotate(0deg) translateX(${Math.max(8,cellSize*0.18)}px)}100%{transform:rotate(360deg) translateX(${Math.max(8,cellSize*0.18)}px)}}
+        @keyframes smokeUp {
+          0% { transform: translateY(0px) scale(0.6); opacity: 0.8; }
+          50% { opacity: 0.5; }
+          100% { transform: translateY(-20px) scale(1.5); opacity: 0; }
+        }
       `}</style>
     </div>
   );
@@ -190,7 +212,6 @@ export const TopBar = ({ players, myId, round, isMuted, onToggleMute }) => (
                   : <FaHeartBroken key={i} style={{ color:'#6B7280', fontSize:'clamp(9px,1.5vw,14px)' }} />
               ))}
             </div>
-            {/* Power-up icon slot */}
             <div className="flex justify-center items-center mt-0.5">
               <div style={{
                 background: player.heldPowerUp ? 'rgba(234,179,8,0.25)' : 'rgba(255,255,255,0.05)',
@@ -210,13 +231,11 @@ export const TopBar = ({ players, myId, round, isMuted, onToggleMute }) => (
         </div>
       ))}
     </div>
-    {/* Round badge */}
     <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none">
       <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-yellow-400 border-4 border-white flex items-center justify-center shadow-lg">
         <span className="text-black font-black text-sm sm:text-lg">{round}</span>
       </div>
     </div>
-    {/* Mute button — top right */}
     {onToggleMute && (
       <button
         onClick={onToggleMute}
@@ -243,14 +262,13 @@ export const QuizOverlay = ({ quizState, myId, onAnswer }) => {
   const isTarget = quizState.targetPlayerId === myId;
   const answered = quizState.answered;
 
-  // Local countdown that ticks every second from the server-provided timeRemainingMs
   const [timeLeft, setTimeLeft] = useState(Math.ceil((quizState.timeRemainingMs ?? 10000) / 1000));
   useEffect(() => {
     setTimeLeft(Math.ceil((quizState.timeRemainingMs ?? 10000) / 1000));
-  }, [quizState.targetPlayerId]); // reset when a new quiz starts
+  }, [quizState.targetPlayerId]);
 
   useEffect(() => {
-    if (answered !== null && answered !== undefined) return; // stop ticking after answered
+    if (answered !== null && answered !== undefined) return;
     if (timeLeft <= 0) return;
     const t = setTimeout(() => setTimeLeft(s => Math.max(0, s - 1)), 1000);
     return () => clearTimeout(t);
@@ -304,7 +322,6 @@ export const QuizOverlay = ({ quizState, myId, onAnswer }) => {
 export const GameOverScreen = ({ players, leaderboard, winnerId, myId, round, onRetry, onExit }) => {
   const ranked = leaderboard && leaderboard.length > 0 ? leaderboard : (players || []);
   const winner = ranked[0] || null;
-
   const rankMedal = ['🥇', '🥈', '🥉', '4️⃣'];
 
   return (
@@ -328,7 +345,6 @@ export const GameOverScreen = ({ players, leaderboard, winnerId, myId, round, on
           </div>
         )}
 
-        {/* Leaderboard */}
         <div className="bg-white/10 rounded-2xl border-2 border-white/20 overflow-hidden mb-4">
           <div className="bg-white/10 px-4 py-2 border-b border-white/20">
             <p className="text-yellow-300 font-black text-sm tracking-widest">PAPAN PERINGKAT</p>

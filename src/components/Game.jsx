@@ -9,6 +9,65 @@ import {
 
 const GRID_SIZE = 10;
 
+// ---- Procedurally generated Sound Effects using Web Audio API ----
+const playSfx = (type) => {
+  try {
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const masterGain = audioCtx.createGain();
+    masterGain.connect(audioCtx.destination);
+
+    if (type === 'CRASH') {
+      // Suara tabrakan biasa: Kebisingan sawtooth frekuensi rendah memudar cepat
+      masterGain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+      masterGain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+
+      const osc = audioCtx.createOscillator();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+      osc.frequency.linearRampToValueAtTime(40, audioCtx.currentTime + 0.4);
+      osc.connect(masterGain);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.4);
+    } 
+    else if (type === 'BOMB') {
+      // Suara ledakan bom: Distorsi berat frekuensi rendah berlipat ganda
+      masterGain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+      masterGain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.6);
+
+      const osc = audioCtx.createOscillator();
+      const osc2 = audioCtx.createOscillator();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(100, audioCtx.currentTime);
+      osc.frequency.linearRampToValueAtTime(20, audioCtx.currentTime + 0.6);
+      
+      osc2.type = 'sawtooth';
+      osc2.frequency.setValueAtTime(80, audioCtx.currentTime);
+      osc2.frequency.linearRampToValueAtTime(10, audioCtx.currentTime + 0.5);
+
+      osc.connect(masterGain);
+      osc2.connect(masterGain);
+      osc.start(); osc2.start();
+      osc.stop(audioCtx.currentTime + 0.6);
+      osc2.stop(audioCtx.currentTime + 0.6);
+    } 
+    else if (type === 'POWERUP') {
+      // Suara dapat item: Nada sine wave ceria berbunyi naik dengan kilat
+      masterGain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+      masterGain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+
+      const osc = audioCtx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+      osc.frequency.linearRampToValueAtTime(800, audioCtx.currentTime + 0.3);
+      osc.connect(masterGain);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.3);
+    }
+  } catch (e) {
+    console.error("Gagal memainkan SFX:", e);
+  }
+};
+
 // ---- Procedurally generated game music using Web Audio API ----
 function useGameMusic(isMuted) {
   const ctxRef = useRef(null);
@@ -99,7 +158,6 @@ function useGameMusic(isMuted) {
       stopMusic();
       return;
     }
-    // Unmuted: mulai musik. Jika browser blokir autoplay, tunggu interaksi pertama.
     startMusic();
     const onInteract = () => startMusic();
     window.addEventListener('click', onInteract, { once: true });
@@ -112,7 +170,6 @@ function useGameMusic(isMuted) {
     };
   }, [isMuted]);
 
-  // Cleanup saat komponen unmount
   useEffect(() => {
     return () => stopMusic();
   }, []);
@@ -142,10 +199,8 @@ const Game = ({ onExit }) => {
   const { myPlayerId, roomCode, isMuted, toggleMute } = useGameContext();
   const cellSize = useCellSize();
 
-  // Start game music
   useGameMusic(isMuted);
 
-  // Game state from backend
   const [phase, setPhase] = useState('COUNTDOWN');
   const [round, setRound] = useState(1);
   const [countdown, setCountdown] = useState(3);
@@ -159,16 +214,16 @@ const Game = ({ onExit }) => {
   const [quizState, setQuizState] = useState(null);
   const [winnerId, setWinnerId] = useState(null);
   const [leaderboard, setLeaderboard] = useState([]);
-  const [powerUpNotifs, setPowerUpNotifs] = useState({});  // { [playerId]: { type, id } }
+  const [powerUpNotifs, setPowerUpNotifs] = useState({});
   const [bombs, setBombs] = useState([]);
 
-  // Smooth animation
   const [pixelPositions, setPixelPositions] = useState({});
   const pixelRef = useRef({});
   const targetRef = useRef({});
   const animFrameRef = useRef(null);
   const dirRef = useRef('right');
   const lastInputRef = useRef(0);
+  const prevPlayersRef = useRef([]);
 
   const [grassBlades] = useState(() =>
     Array(GRID_SIZE).fill(null).map(() =>
@@ -194,11 +249,9 @@ const Game = ({ onExit }) => {
     )
   );
 
-  // Subscribe to backend game state
   useEffect(() => {
     if (!roomCode) return;
 
-    // Reconnect WebSocket if needed (WaitingRoom may have disconnected)
     if (!ws.isConnected()) {
       ws.connect(() => {
         subscribeToRoom();
@@ -209,24 +262,44 @@ const Game = ({ onExit }) => {
 
     function subscribeToRoom() {
       ws.subscribeRoom(roomCode, (data) => {
-        // data = GameStateDto
         if (data.phase !== undefined) setPhase(data.phase);
         if (data.round !== undefined) setRound(data.round);
         if (data.countdownValue !== undefined) setCountdown(data.countdownValue);
         if (data.grassGrid) setGrassGrid(data.grassGrid);
         if (data.rockGrid) setRockGrid(data.rockGrid);
-        if (data.players) setPlayers(data.players);
         if (data.quizState !== undefined) setQuizState(data.quizState);
         if (data.winnerId !== undefined) setWinnerId(data.winnerId);
         if (data.leaderboard) setLeaderboard(data.leaderboard);
-
-        // Extract bombs from players (backend sends activeBombs in GameStateDto if added)
         if (data.activeBombs) setBombs(data.activeBombs);
+
+        if (data.players) {
+          // Deteksi perubahan status player untuk trigger SFX secara real-time
+          data.players.forEach(p => {
+            const prevPlayer = prevPlayersRef.current.find(prev => prev.id === p.id);
+            if (prevPlayer) {
+              const now = Date.now();
+              const currentStunned = p.stunned && p.stunEndTime > now;
+              const prevStunned = prevPlayer.stunned && prevPlayer.stunEndTime > now;
+
+              // 1. Baru terkena efek STUN (Dari Bom)
+              if (!prevStunned && currentStunned) {
+                if (!isMuted) playSfx('BOMB');
+              }
+              // 2. Baru menabrak hancur mendadak (Mati biasa)
+              else if (!prevPlayer.crashed && p.crashed) {
+                if (!isMuted) playSfx('CRASH');
+              }
+            }
+          });
+          prevPlayersRef.current = data.players;
+          setPlayers(data.players);
+        }
       });
 
       ws.subscribePowerUp(roomCode, (event) => {
-        // event = PowerUpEventDto { playerId, type, x, y, autoActivated }
-        // Only show 1 notif per player at a time — replace any existing one
+        // 3. Play SFX pengambilan item power-up
+        if (!isMuted) playSfx('POWERUP');
+
         const notifId = Date.now();
         setPowerUpNotifs(prev => ({ ...prev, [event.playerId]: { type: event.type, id: notifId } }));
         setTimeout(() => {
@@ -243,12 +316,9 @@ const Game = ({ onExit }) => {
       });
     }
 
-    return () => {
-      // Don't disconnect here — let GameContainer handle it on exit
-    };
-  }, [roomCode]);
+    return () => {};
+  }, [roomCode, isMuted]);
 
-  // Smooth position interpolation
   useEffect(() => {
     players.forEach(p => {
       const key = String(p.id);
@@ -289,7 +359,6 @@ const Game = ({ onExit }) => {
     return () => cancelAnimationFrame(animFrameRef.current);
   }, []);
 
-  // Send direction input to backend
   const sendDir = useCallback((dir) => {
     const now = Date.now();
     if (now - lastInputRef.current < 50) return;
@@ -300,17 +369,14 @@ const Game = ({ onExit }) => {
     ws.sendInput(roomCode, myPlayerId, dir, false);
   }, [roomCode, myPlayerId]);
 
-  // Send power-up activation to backend
   const sendPowerUp = useCallback(() => {
     ws.sendInput(roomCode, myPlayerId, null, true);
   }, [roomCode, myPlayerId]);
 
-  // Send quiz answer to backend
   const answerQuiz = useCallback((selectedIndex) => {
     ws.sendQuizAnswer(roomCode, myPlayerId, selectedIndex);
   }, [roomCode, myPlayerId]);
 
-  // Retry — host calls REST endpoint
   const retry = useCallback(async () => {
     try {
       await api.retryGame(roomCode);
