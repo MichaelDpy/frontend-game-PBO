@@ -15,6 +15,19 @@ export const GameProvider = ({ children }) => {
   const [roomCode, setRoomCode] = useState(null);
   const [isHost, setIsHost] = useState(false);
 
+  // Music state — persisted in localStorage
+  const [isMuted, setIsMuted] = useState(() => {
+    try { return localStorage.getItem('music_muted') === 'true'; } catch { return false; }
+  });
+
+  const toggleMute = useCallback(() => {
+    setIsMuted(prev => {
+      const next = !prev;
+      try { localStorage.setItem('music_muted', String(next)); } catch {}
+      return next;
+    });
+  }, []);
+
   // Auth state
   const [authUser, setAuthUser] = useState(storedUser); // { id, username, lastColor }
   const isLoggedIn = !!authUser;
@@ -66,6 +79,8 @@ export const GameProvider = ({ children }) => {
       handleLogin,
       handleLogout,
       reset,
+      isMuted,
+      toggleMute,
     }}>
       {children}
     </GameContext.Provider>
