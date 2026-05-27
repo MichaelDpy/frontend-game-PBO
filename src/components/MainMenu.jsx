@@ -5,6 +5,7 @@ import LawnMower from './LawnMower';
 import ColorPicker from './ColorPicker';
 import BushBackground from './BushBackground';
 import NameInput from './NameInput';
+import MusicButton from './MusicButton';
 import { useGameContext } from '../context/GameContext';
 import { api } from '../services/websocket';
 
@@ -243,7 +244,7 @@ const AuthModal = ({ onClose, onSuccess }) => {
 
 // ---- Main Menu ----
 const MainMenu = ({ onPlay, onHowToPlay, onCredit, onStats }) => {
-  const { playerName, setPlayerName, mowerColor, setMowerColor, isLoggedIn, authUser } = useGameContext();
+  const { playerName, setPlayerName, mowerColor, setMowerColor, isLoggedIn, authUser, isMuted, toggleMute } = useGameContext();
   const [showAuth, setShowAuth] = useState(false);
 
   const colors = [
@@ -269,6 +270,11 @@ const MainMenu = ({ onPlay, onHowToPlay, onCredit, onStats }) => {
             {authUser?.username}
           </span>
         )}
+      </div>
+
+      {/* ---- Music button — top right ---- */}
+      <div className="absolute top-4 right-4 z-20">
+        <MusicButton />
       </div>
 
       {/* ---- Auth modal ---- */}
