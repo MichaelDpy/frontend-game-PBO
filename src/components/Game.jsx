@@ -3,11 +3,120 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useGameContext } from '../context/GameContext';
 import { api, ws } from '../services/websocket';
 import {
-  RockSvg, PowerUpBadge, PlayerMower,
+  RockSvg, PowerUpBadge, PowerUpIcon, PlayerMower,
   TopBar, QuizOverlay, GameOverScreen, MobileControls,
 } from './GameParts';
 
 const GRID_SIZE = 10;
+
+// ---- Procedurally generated game music using Web Audio API ----
+function useGameMusic(isMuted) {
+  const ctxRef = useRef(null);
+  const intervalRef = useRef(null);
+
+  const stopMusic = () => {
+    if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
+    if (ctxRef.current) {
+      ctxRef.current.close().catch(() => {});
+      ctxRef.current = null;
+    }
+  };
+
+  const startMusic = () => {
+    stopMusic(); // pastikan bersih dulu
+    try {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      ctxRef.current = audioCtx;
+
+      const melody = [
+        [392.00, 0.0,  0.12], [440.00, 0.15, 0.12], [493.88, 0.3,  0.12],
+        [523.25, 0.45, 0.20], [493.88, 0.7,  0.12], [440.00, 0.85, 0.12],
+        [392.00, 1.0,  0.20], [349.23, 1.25, 0.12], [392.00, 1.4,  0.12],
+        [440.00, 1.55, 0.12], [523.25, 1.7,  0.12], [587.33, 1.85, 0.20],
+        [659.25, 2.1,  0.12], [587.33, 2.25, 0.12], [523.25, 2.4,  0.12],
+        [493.88, 2.55, 0.30],
+      ];
+      const bass = [
+        [130.81, 0.0, 0.18], [130.81, 0.5, 0.18],
+        [146.83, 1.0, 0.18], [146.83, 1.5, 0.18],
+        [130.81, 2.0, 0.18], [130.81, 2.5, 0.18],
+      ];
+      const loopDur = 2.9;
+
+      const masterGain = audioCtx.createGain();
+      masterGain.gain.value = 0.15;
+      masterGain.connect(audioCtx.destination);
+
+      const scheduleLoop = (offset) => {
+        if (!ctxRef.current || ctxRef.current.state === 'closed') return;
+        const ctx = ctxRef.current;
+        melody.forEach(([freq, t, dur]) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.value = freq;
+          const at = ctx.currentTime + offset + t;
+          gain.gain.setValueAtTime(0.001, at);
+          gain.gain.linearRampToValueAtTime(0.5, at + 0.01);
+          gain.gain.exponentialRampToValueAtTime(0.001, at + dur);
+          osc.connect(gain); gain.connect(masterGain);
+          osc.start(at); osc.stop(at + dur + 0.05);
+        });
+        bass.forEach(([freq, t, dur]) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.value = freq;
+          const at = ctx.currentTime + offset + t;
+          gain.gain.setValueAtTime(0.001, at);
+          gain.gain.linearRampToValueAtTime(0.4, at + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.001, at + dur);
+          osc.connect(gain); gain.connect(masterGain);
+          osc.start(at); osc.stop(at + dur + 0.05);
+        });
+      };
+
+      const play = () => {
+        for (let i = 0; i < 3; i++) scheduleLoop(i * loopDur);
+        intervalRef.current = setInterval(() => {
+          if (!ctxRef.current || ctxRef.current.state === 'closed') {
+            clearInterval(intervalRef.current); intervalRef.current = null; return;
+          }
+          scheduleLoop(3 * loopDur);
+        }, loopDur * 1000);
+      };
+
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume().then(play).catch(() => {});
+      } else {
+        play();
+      }
+    } catch {}
+  };
+
+  useEffect(() => {
+    if (isMuted) {
+      stopMusic();
+      return;
+    }
+    // Unmuted: mulai musik. Jika browser blokir autoplay, tunggu interaksi pertama.
+    startMusic();
+    const onInteract = () => startMusic();
+    window.addEventListener('click', onInteract, { once: true });
+    window.addEventListener('keydown', onInteract, { once: true });
+    window.addEventListener('touchstart', onInteract, { once: true });
+    return () => {
+      window.removeEventListener('click', onInteract);
+      window.removeEventListener('keydown', onInteract);
+      window.removeEventListener('touchstart', onInteract);
+    };
+  }, [isMuted]);
+
+  // Cleanup saat komponen unmount
+  useEffect(() => {
+    return () => stopMusic();
+  }, []);
+}
 
 function useCellSize() {
   const [cellSize, setCellSize] = useState(56);
@@ -30,8 +139,11 @@ function useCellSize() {
 }
 
 const Game = ({ onExit }) => {
-  const { myPlayerId, roomCode } = useGameContext();
+  const { myPlayerId, roomCode, isMuted, toggleMute } = useGameContext();
   const cellSize = useCellSize();
+
+  // Start game music
+  useGameMusic(isMuted);
 
   // Game state from backend
   const [phase, setPhase] = useState('COUNTDOWN');
@@ -220,7 +332,7 @@ const Game = ({ onExit }) => {
 
   return (
     <div className="min-h-screen w-full bg-green-800 flex flex-col select-none overflow-hidden">
-      <TopBar players={players} myId={MY_ID} round={round} />
+      <TopBar players={players} myId={MY_ID} round={round} isMuted={isMuted} onToggleMute={toggleMute} />
 
       <div className="flex-1 flex items-center justify-center relative overflow-hidden">
         <div className="relative flex-shrink-0"
@@ -299,7 +411,7 @@ const Game = ({ onExit }) => {
             return (
               <div key={notif.id} className="absolute pointer-events-none animate-bounce"
                 style={{ left: pos.x + cellSize / 2 - 18, top: pos.y - 44, zIndex: 30 }}>
-                <PowerUpBadge type={notif.type} size={34} />
+                <PowerUpIcon type={notif.type} size={34} />
               </div>
             );
           })}
