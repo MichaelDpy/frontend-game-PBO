@@ -18,8 +18,8 @@ const GithubIcon = () => (
 const DEVELOPERS = [
   { name: 'Michael Alexius Depari', github: 'MichaelDpy', nim: '241401119', isLead: true },
   { name: 'Achmad Caesar Ramadhan', github: 'Ahmadmapple', nim: '241401011', isLead: false },
-  { name: 'Wein Ilham Lutfi',        github: 'wein359',     nim: 'XXXXXXXXXX', isLead: false },
-  { name: 'Naufal Khayril Lubis',    github: 'Fuad',        nim: 'XXXXXXXXXX', isLead: false },
+  { name: 'Wein Ilham Lutfi',        github: 'wein359',     nim: '241401101', isLead: false },
+  { name: 'Naufal Khayril Lubis',    github: 'Fuad',        nim: '241401089', isLead: false },
 ];
 
 const REPOS = [
@@ -51,8 +51,8 @@ const DevCard = ({ dev }) => (
           </span>
         )}
       </div>
-      <p className="text-white/50 text-xs mt-0.5">NIM: {dev.nim}</p>
-      <div className="flex items-center gap-1.5 mt-1 text-green-300">
+      <p className="text-yellow-200 text-xs mt-0.5">NIM: {dev.nim}</p>
+      <div className="flex items-center gap-1.5 mt-1 text-cyan-300">
         <GithubIcon />
         <span className="text-sm font-semibold">{dev.github}</span>
       </div>

@@ -39,7 +39,7 @@ const IlluControls = () => (
     ))}
     <rect x="20" y="78" width="80" height="18" rx="4" fill="#374151" stroke="#FCD34D" strokeWidth="1.5"/>
     <text x="60" y="91" textAnchor="middle" fontSize="9" fill="#FCD34D" fontWeight="bold">SPACE = Power-Up</text>
-    <text x="80" y="118" textAnchor="middle" fontSize="8" fill="#9CA3AF">Mobile: tombol layar</text>
+    <text x="80" y="118" textAnchor="middle" fontSize="8" fill="#e2e8f0">Mobile: tombol layar</text>
     <text x="55" y="135" textAnchor="middle" fontSize="8" fill="#86efac">WASD / Arrow Keys</text>
   </svg>
 );
@@ -53,7 +53,7 @@ const IlluRound = () => (
       return <text key={i} x={80+42*Math.cos(rad)} y={45+42*Math.sin(rad)+4}
         textAnchor="middle" fontSize="10" fill="#FCD34D">→</text>;
     })}
-    <text x="80" y="105" textAnchor="middle" fontSize="9" fill="white">Ronde berakhir saat</text>
+    <text x="80" y="105" textAnchor="middle" fontSize="9" fill="#f1f5f9">Ronde berakhir saat</text>
     <text x="80" y="118" textAnchor="middle" fontSize="9" fill="#86efac">semua rumput habis</text>
     <text x="80" y="131" textAnchor="middle" fontSize="9" fill="#86efac">atau semua mati</text>
   </svg>
@@ -95,7 +95,7 @@ const IlluPowerUp = () => (
       <circle cx="28" cy="9" r="2" fill="#FCD34D"/>
       <text x="19" y="50" textAnchor="middle" fontSize="7" fill="#EF4444">Bom</text>
     </g>
-    <text x="80" y="80" textAnchor="middle" fontSize="8" fill="white">Dapatkan saat memotong rumput</text>
+    <text x="80" y="80" textAnchor="middle" fontSize="8" fill="#f1f5f9">Dapatkan saat memotong rumput</text>
     <text x="80" y="93" textAnchor="middle" fontSize="8" fill="#86efac">Tekan SPACE untuk aktifkan</text>
     <text x="80" y="115" textAnchor="middle" fontSize="14">⭐⭐⭐</text>
     <text x="80" y="132" textAnchor="middle" fontSize="8" fill="#FCA5A5">Bom = stun 2 detik</text>
@@ -145,7 +145,7 @@ const IlluWin = () => (
 
 const Row = ({ index, title, body, Illustration }) => {
   const isOdd = index % 2 !== 0;
-  const bgColor = isOdd ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.20)';
+  const bgColor = isOdd ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)';
 
   const textBlock = (
     <div style={{
@@ -160,7 +160,7 @@ const Row = ({ index, title, body, Illustration }) => {
         marginBottom: '0.4rem', textShadow: '2px 2px 0 #78350f',
       }}>{title}</h2>
       <p style={{
-        color: 'rgba(255,255,255,0.88)',
+        color: 'rgba(255,255,255,0.95)',
         fontSize: 'clamp(0.72rem, 1.3vw, 0.88rem)',
         lineHeight: 1.65, margin: 0,
       }}>{body}</p>
