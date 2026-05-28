@@ -16,7 +16,7 @@ const GithubIcon = () => (
 );
 
 const DEVELOPERS = [
-  { name: 'Michael Alexius Depari', github: 'MichaelDpy', nim: '241401119', isLead: true },
+  { name: 'Michael Alexius Depari', github: 'MichaelDpy(Agnes)', nim: '241401119', isLead: true },
   { name: 'Achmad Caesar Ramadhan', github: 'Ahmadmapple', nim: '241401011', isLead: false },
   { name: 'Wein Ilham Lutfi',        github: 'wein359',     nim: '241401101', isLead: false },
   { name: 'Naufal Khayril Lubis',    github: 'Fuad',        nim: '241401089', isLead: false },
