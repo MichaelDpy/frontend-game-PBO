@@ -201,16 +201,48 @@ const ArrowBackground = () => (
 
 const InfiniteArrowRow = ({ direction }) => {
   const isRight = direction === 'right';
-  const spacing = 100;
+  const spacing = 100; // px per arrow
+
+  // Enough arrows to fill any screen: 40 covers up to 4000px wide.
+  // We render TWO identical sets back-to-back so the loop is seamless.
+  const count = 40;
+  const setWidth = count * spacing; // one full set width in px
+
+  const arrows = Array(count).fill(null);
+
   return (
-    <div className="relative w-full h-full overflow-hidden">
+    <div className="absolute inset-0 overflow-hidden">
+      {/*
+        Two identical sets placed side by side.
+        For "right" flow: animate from -setWidth to 0 (slides right, loops perfectly).
+        For "left"  flow: animate from 0 to -setWidth (slides left, loops perfectly).
+        The second set starts at +setWidth so there's never a gap.
+      */}
       <div
-        className="absolute h-full flex items-center"
-        style={{ animation: isRight ? 'flowRight 6s linear infinite' : 'flowLeft 6s linear infinite' }}
+        className="absolute top-0 h-full flex items-center"
+        style={{
+          width: setWidth * 2,
+          animation: isRight
+            ? `arrowFlowRight ${setWidth / 80}s linear infinite`
+            : `arrowFlowLeft  ${setWidth / 80}s linear infinite`,
+          willChange: 'transform',
+        }}
       >
-        {Array(14).fill(null).map((_, i) => (
-          <svg key={i} width={spacing} height="100%" viewBox="0 0 100 60"
-            preserveAspectRatio="xMidYMid meet" className="flex-shrink-0">
+        {/* Set 1 */}
+        {arrows.map((_, i) => (
+          <svg key={`a-${i}`} width={spacing} height="100%" viewBox="0 0 100 60"
+            preserveAspectRatio="xMidYMid meet" style={{ flexShrink: 0 }}>
+            <g transform="translate(50, 30)">
+              {isRight
+                ? <path d="M -25 -18 L 35 0 L -25 18 Z" fill="#60a5fa" />
+                : <path d="M 25 -18 L -35 0 L 25 18 Z" fill="#93c5fd" />}
+            </g>
+          </svg>
+        ))}
+        {/* Set 2 — identical copy for seamless loop */}
+        {arrows.map((_, i) => (
+          <svg key={`b-${i}`} width={spacing} height="100%" viewBox="0 0 100 60"
+            preserveAspectRatio="xMidYMid meet" style={{ flexShrink: 0 }}>
             <g transform="translate(50, 30)">
               {isRight
                 ? <path d="M -25 -18 L 35 0 L -25 18 Z" fill="#60a5fa" />
@@ -220,8 +252,14 @@ const InfiniteArrowRow = ({ direction }) => {
         ))}
       </div>
       <style>{`
-        @keyframes flowRight { 0%{transform:translateX(-${spacing}px)} 100%{transform:translateX(0)} }
-        @keyframes flowLeft  { 0%{transform:translateX(0)} 100%{transform:translateX(-${spacing}px)} }
+        @keyframes arrowFlowRight {
+          0%   { transform: translateX(-${setWidth}px); }
+          100% { transform: translateX(0px); }
+        }
+        @keyframes arrowFlowLeft {
+          0%   { transform: translateX(0px); }
+          100% { transform: translateX(-${setWidth}px); }
+        }
       `}</style>
     </div>
   );
