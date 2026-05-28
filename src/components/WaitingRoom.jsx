@@ -17,25 +17,46 @@ const WaitingRoom = ({ onBack, onStartGame, onDisbanded }) => {
   const [starting, setStarting] = useState(false);
   const navigatedRef = useRef(false);
 
+  // State untuk timer — diisi dari expiresAt backend agar sinkron antar player
+  const [expiresAt, setExpiresAt] = useState(null); // epoch ms
+  const [timeLeft, setTimeLeft] = useState(300);
+
+  // Sinkronkan timeLeft setiap detik dari expiresAt
+  useEffect(() => {
+    if (!expiresAt) return;
+    const tick = () => {
+      const sisa = Math.max(0, Math.round((expiresAt - Date.now()) / 1000));
+      setTimeLeft(sisa);
+      if (sisa <= 0) onDisbanded?.();
+    };
+    tick();
+    const timer = setInterval(tick, 1000);
+    return () => clearInterval(timer);
+  }, [expiresAt, onDisbanded]);
+
+  // Helper format detik ke MM:SS
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  };
+
   // Connect WebSocket and subscribe to room updates
   useEffect(() => {
     if (!roomCode) return;
 
-    // Connect WebSocket
     ws.connect(
       () => {
-        // Subscribe to room topic — receives RoomDto updates
         ws.subscribeRoom(roomCode, (data) => {
-          // data is RoomDto: { id, code, status, players, myPlayerId }
+          // data is RoomDto: { id, code, status, players, myPlayerId, expiresAt }
+          if (data.expiresAt) setExpiresAt(data.expiresAt);
           if (data.players) {
             setPlayers(data.players);
           }
-          // If host started the game, navigate all clients to game
           if (data.status === 'PLAYING' && !navigatedRef.current) {
             navigatedRef.current = true;
             onStartGame();
           }
-          // Room disbanded
           if (data.status === 'FINISHED') {
             onDisbanded?.();
           }
@@ -47,9 +68,9 @@ const WaitingRoom = ({ onBack, onStartGame, onDisbanded }) => {
       }
     );
 
-    // Also do an initial HTTP fetch to get current player list
     api.getRoom(roomCode, myPlayerId)
       .then(data => {
+        if (data.expiresAt) setExpiresAt(data.expiresAt);
         if (data.players) setPlayers(data.players);
       })
       .catch(() => {});
@@ -86,7 +107,6 @@ const WaitingRoom = ({ onBack, onStartGame, onDisbanded }) => {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Build 4 slots: fill with real players, rest empty
   const slots = Array(4).fill(null).map((_, i) => players[i] || null);
 
   return (
@@ -96,6 +116,13 @@ const WaitingRoom = ({ onBack, onStartGame, onDisbanded }) => {
       </div>
 
       <div className="relative z-10 flex flex-col items-center justify-center min-h-screen w-full p-4 sm:p-8">
+
+        {/* WIDGET VISUAL TIMER 5 MENIT */}
+        <div className="mb-2 bg-red-600/90 border-4 border-white rounded-2xl px-5 py-2 text-center shadow-lg transform -rotate-1 animate-pulse">
+          <p className="text-[10px] font-black text-yellow-300 tracking-widest uppercase">Room Expire Timer</p>
+          <p className="text-2xl font-black font-mono text-white tracking-wider">{formatTime(timeLeft)}</p>
+        </div>
+
         <h1
           className="font-black text-white text-center mb-4"
           style={{
@@ -186,7 +213,7 @@ const WaitingRoom = ({ onBack, onStartGame, onDisbanded }) => {
   );
 };
 
-// ---- Arrow Background ----
+// ---- Arrow Background (versi temanmu — seamless loop) ----
 const ArrowBackground = () => (
   <div className="absolute inset-0 overflow-hidden">
     <div className="absolute inset-x-0 h-[23%] top-[1%]"><InfiniteArrowRow direction="right" /></div>
@@ -201,23 +228,13 @@ const ArrowBackground = () => (
 
 const InfiniteArrowRow = ({ direction }) => {
   const isRight = direction === 'right';
-  const spacing = 100; // px per arrow
-
-  // Enough arrows to fill any screen: 40 covers up to 4000px wide.
-  // We render TWO identical sets back-to-back so the loop is seamless.
+  const spacing = 100;
   const count = 40;
-  const setWidth = count * spacing; // one full set width in px
-
+  const setWidth = count * spacing;
   const arrows = Array(count).fill(null);
 
   return (
     <div className="absolute inset-0 overflow-hidden">
-      {/*
-        Two identical sets placed side by side.
-        For "right" flow: animate from -setWidth to 0 (slides right, loops perfectly).
-        For "left"  flow: animate from 0 to -setWidth (slides left, loops perfectly).
-        The second set starts at +setWidth so there's never a gap.
-      */}
       <div
         className="absolute top-0 h-full flex items-center"
         style={{
@@ -228,20 +245,8 @@ const InfiniteArrowRow = ({ direction }) => {
           willChange: 'transform',
         }}
       >
-        {/* Set 1 */}
-        {arrows.map((_, i) => (
-          <svg key={`a-${i}`} width={spacing} height="100%" viewBox="0 0 100 60"
-            preserveAspectRatio="xMidYMid meet" style={{ flexShrink: 0 }}>
-            <g transform="translate(50, 30)">
-              {isRight
-                ? <path d="M -25 -18 L 35 0 L -25 18 Z" fill="#60a5fa" />
-                : <path d="M 25 -18 L -35 0 L 25 18 Z" fill="#93c5fd" />}
-            </g>
-          </svg>
-        ))}
-        {/* Set 2 — identical copy for seamless loop */}
-        {arrows.map((_, i) => (
-          <svg key={`b-${i}`} width={spacing} height="100%" viewBox="0 0 100 60"
+        {[...arrows, ...arrows].map((_, i) => (
+          <svg key={i} width={spacing} height="100%" viewBox="0 0 100 60"
             preserveAspectRatio="xMidYMid meet" style={{ flexShrink: 0 }}>
             <g transform="translate(50, 30)">
               {isRight
