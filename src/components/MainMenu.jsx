@@ -61,18 +61,49 @@ const AuthModal = ({ onClose, onSuccess }) => {
   const { handleLogin, handleLogout, isLoggedIn, authUser } = useGameContext();
 
   const handleSubmit = async () => {
-    if (!username.trim() || !password.trim()) {
+    // Validasi frontend
+    const trimmedUsername = username.trim();
+    const trimmedPassword = password.trim();
+    
+    if (!trimmedUsername || !trimmedPassword) {
       setError('Username dan password tidak boleh kosong');
       return;
     }
+    
+    if (mode === 'register') {
+      if (trimmedUsername.length < 3 || trimmedUsername.length > 20) {
+        setError('Username harus 3-20 karakter');
+        return;
+      }
+      if (trimmedPassword.length < 4 || trimmedPassword.length > 50) {
+        setError('Password harus 4-50 karakter');
+        return;
+      }
+      // Validasi karakter username (alphanumeric dan underscore)
+      if (!/^[a-zA-Z0-9_]+$/.test(trimmedUsername)) {
+        setError('Username hanya boleh huruf, angka, dan underscore');
+        return;
+      }
+    } else {
+      // Login validation
+      if (trimmedUsername.length < 3) {
+        setError('Username minimal 3 karakter');
+        return;
+      }
+      if (trimmedPassword.length < 4) {
+        setError('Password minimal 4 karakter');
+        return;
+      }
+    }
+    
     setError('');
     setLoading(true);
     try {
       let data;
       if (mode === 'login') {
-        data = await api.login(username.trim(), password);
+        data = await api.login(trimmedUsername, trimmedPassword);
       } else {
-        data = await api.register(username.trim(), password);
+        data = await api.register(trimmedUsername, trimmedPassword);
       }
       handleLogin(data);
       onSuccess?.(data);
@@ -194,7 +225,10 @@ const AuthModal = ({ onClose, onSuccess }) => {
                   onChange={e => setUsername(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && handleSubmit()}
                   placeholder="Masukkan username..."
+                  minLength={3}
                   maxLength={20}
+                  pattern="[a-zA-Z0-9_]+"
+                  title="Username hanya boleh huruf, angka, dan underscore"
                   className="w-full px-3 py-2 rounded-lg border-2 border-amber-700 bg-amber-50 text-amber-900 font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 placeholder-amber-700/40"
                 />
               </div>
@@ -206,6 +240,8 @@ const AuthModal = ({ onClose, onSuccess }) => {
                   onChange={e => setPassword(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && handleSubmit()}
                   placeholder="Masukkan password..."
+                  minLength={4}
+                  maxLength={50}
                   className="w-full px-3 py-2 rounded-lg border-2 border-amber-700 bg-amber-50 text-amber-900 font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 placeholder-amber-700/40"
                 />
               </div>
