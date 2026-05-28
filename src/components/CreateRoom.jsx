@@ -14,11 +14,22 @@ const CreateRoom = ({ onBack, onRoomReady }) => {
   const [error, setError] = useState('');
 
   const handleCreateRoom = async () => {
-    if (!playerName.trim()) { setError('Masukkan nama terlebih dahulu'); return; }
+    const trimmedName = playerName.trim();
+    
+    if (!trimmedName) { 
+      setError('Masukkan nama terlebih dahulu'); 
+      return; 
+    }
+    
+    if (trimmedName.length < 1 || trimmedName.length > 20) {
+      setError('Nama harus 1-20 karakter');
+      return;
+    }
+    
     setError('');
     setLoading(true);
     try {
-      const data = await api.createRoom(playerName.trim(), mowerColor, authUser?.username ?? null);
+      const data = await api.createRoom(trimmedName, mowerColor, authUser?.username ?? null);
       // data = RoomDto { id, code, status, players, myPlayerId }
       setGeneratedCode(data.code);
       setMyPlayerId(data.myPlayerId);
@@ -36,15 +47,36 @@ const CreateRoom = ({ onBack, onRoomReady }) => {
   };
 
   const handleJoinRoom = async () => {
-    if (!playerName.trim()) { setError('Masukkan nama terlebih dahulu'); return; }
+    const trimmedName = playerName.trim();
+    
+    if (!trimmedName) { 
+      setError('Masukkan nama terlebih dahulu'); 
+      return; 
+    }
+    
+    if (trimmedName.length < 1 || trimmedName.length > 20) {
+      setError('Nama harus 1-20 karakter');
+      return;
+    }
+    
     const input = roomLink.trim().toUpperCase();
     // Support full link or just code
     const code = input.includes('/') ? input.split('/').pop() : input;
-    if (!code) { setError('Masukkan kode room'); return; }
+    
+    if (!code) { 
+      setError('Masukkan kode room'); 
+      return; 
+    }
+    
+    if (code.length < 1 || code.length > 8) {
+      setError('Kode room tidak valid');
+      return;
+    }
+    
     setError('');
     setLoading(true);
     try {
-      const data = await api.joinRoom(playerName.trim(), mowerColor, code, authUser?.username ?? null);
+      const data = await api.joinRoom(trimmedName, mowerColor, code, authUser?.username ?? null);
       setMyPlayerId(data.myPlayerId);
       setRoomCode(data.code);
       setIsHost(false);

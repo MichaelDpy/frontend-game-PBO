@@ -182,11 +182,24 @@ function useCellSize() {
       const isMobile = window.innerWidth <= 1024;
       const vw = window.innerWidth;
       const vh = window.innerHeight;
-      const usableW = isMobile ? vw - 16 : vw - 32;
-      const usableH = isMobile ? vh - 90 - 36 - 150 : vh - 90 - 36 - 16;
+      
+      // Improved mobile calculation
+      const topBarHeight = 72;
+      const mobileControlsHeight = isMobile ? 140 : 0;
+      const desktopControlsHeight = isMobile ? 0 : 36;
+      const padding = isMobile ? 8 : 16;
+      
+      const usableW = vw - (padding * 2);
+      const usableH = vh - topBarHeight - (isMobile ? mobileControlsHeight : desktopControlsHeight) - (padding * 2);
+      
       const byW = Math.floor(usableW / GRID_SIZE);
       const byH = Math.floor(usableH / GRID_SIZE);
-      setCellSize(Math.max(28, Math.min(byW, byH, 72)));
+      
+      // Better size constraints for mobile
+      const minSize = isMobile ? 24 : 28;
+      const maxSize = isMobile ? 56 : 72;
+      
+      setCellSize(Math.max(minSize, Math.min(byW, byH, maxSize)));
     };
     calc();
     window.addEventListener('resize', calc);
@@ -410,10 +423,10 @@ const Game = ({ onExit }) => {
   const MY_ID = myPlayerId;
 
   return (
-    <div className="min-h-screen w-full bg-green-800 flex flex-col select-none overflow-hidden">
+    <div className="min-h-screen w-full bg-green-800 flex flex-col select-none overflow-hidden touch-none">
       <TopBar players={players} myId={MY_ID} round={round} isMuted={isMuted} onToggleMute={toggleMute} />
 
-      <div className="flex-1 flex items-center justify-center relative overflow-hidden">
+      <div className="flex-1 flex items-center justify-center relative overflow-hidden p-1 sm:p-2">
         <div className="relative flex-shrink-0"
           style={{ width: GRID_SIZE * cellSize, height: GRID_SIZE * cellSize }}>
 
