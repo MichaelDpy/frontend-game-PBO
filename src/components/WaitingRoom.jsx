@@ -117,23 +117,31 @@ const WaitingRoom = ({ onBack, onStartGame, onDisbanded }) => {
 
       <div className="relative z-10 flex flex-col items-center justify-center min-h-screen w-full p-4 sm:p-8">
 
-        {/* WIDGET VISUAL TIMER 5 MENIT */}
-        <div className="mb-2 bg-red-600/90 border-4 border-white rounded-2xl px-5 py-2 text-center shadow-lg transform -rotate-1 animate-pulse">
-          <p className="text-[10px] font-black text-yellow-300 tracking-widest uppercase">Room Expire Timer</p>
-          <p className="text-2xl font-black font-mono text-white tracking-wider">{formatTime(timeLeft)}</p>
-        </div>
+        {/* Header row: judul kiri, timer kanan atas */}
+        <div className="relative w-full max-w-2xl flex items-center justify-center mb-4">
+          <h1
+            className="font-black text-white text-center"
+            style={{
+              fontFamily: '"Comic Sans MS", "Chalkboard SE", "Marker Felt", sans-serif',
+              fontSize: 'clamp(2.5rem, 8vw, 4rem)',
+              textShadow: '4px 4px 0px #1e40af, -2px -2px 0px #60a5fa, 6px 6px 12px rgba(0,0,0,0.5)',
+              WebkitTextStroke: '2px #1e3a8a',
+            }}
+          >
+            Waiting Room
+          </h1>
 
-        <h1
-          className="font-black text-white text-center mb-4"
-          style={{
-            fontFamily: '"Comic Sans MS", "Chalkboard SE", "Marker Felt", sans-serif',
-            fontSize: 'clamp(2.5rem, 8vw, 4rem)',
-            textShadow: '4px 4px 0px #1e40af, -2px -2px 0px #60a5fa, 6px 6px 12px rgba(0,0,0,0.5)',
-            WebkitTextStroke: '2px #1e3a8a',
-          }}
-        >
-          Waiting Room
-        </h1>
+          {/* Timer — sudut kanan atas, sejajar judul */}
+          <div
+            className="absolute right-0 top-1/2 -translate-y-1/2 bg-red-600/90 border-4 border-white rounded-2xl px-3 py-1 text-center shadow-lg"
+            style={{ transform: 'translateY(-50%) rotate(-1deg)' }}
+          >
+            <p className="text-[9px] font-black text-yellow-300 tracking-widest uppercase leading-none mb-0.5">Timer</p>
+            <p className={`text-xl font-black font-mono text-white tracking-wider leading-none ${timeLeft <= 60 ? 'animate-pulse' : ''}`}>
+              {formatTime(timeLeft)}
+            </p>
+          </div>
+        </div>
 
         {/* Room code */}
         <div className="mb-6 p-4 bg-white/20 backdrop-blur-sm rounded-xl border-2 border-white/30">

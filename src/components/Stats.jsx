@@ -24,7 +24,14 @@ const Stats = ({ onBack }) => {
     setError('');
     api.getMyStats()
       .then(data => setStats(data))
-      .catch(err => setError(err.message || 'Gagal memuat statistik'))
+      .catch(err => {
+        const msg = err.message || '';
+        if (msg.includes('401') || msg.toLowerCase().includes('unauthorized')) {
+          setError('Sesi kamu sudah habis. Silakan login ulang.');
+        } else {
+          setError(msg || 'Gagal memuat statistik');
+        }
+      })
       .finally(() => setLoading(false));
   }, [isLoggedIn]);
 

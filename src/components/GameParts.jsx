@@ -192,20 +192,32 @@ export const PlayerMower = ({ player, pos, cellSize, isMe }) => {
 
 export const TopBar = ({ players, myId, round, isMuted, onToggleMute }) => {
   const playerList = players || [];
-  const playerCount = playerList.length;
-  
-  // Untuk 4 pemain: 2 kiri, 2 kanan
-  // Untuk lainnya: utamakan 2 kiri, sisanya kanan
-  const leftPlayers = playerCount === 4 ? playerList.slice(0, 2) : playerList.slice(0, Math.min(2, playerCount));
-  const rightPlayers = playerCount === 4 ? playerList.slice(2, 4) : playerList.slice(2);
-  
+
+  // Fixed card width = 25vw always, regardless of player count.
+  // Slots: [P1][P2] [ROUND] [P3][P4]
+  // 2 players: P1 left, P2 right of round badge
+  // 3 players: P1+P2 left, P3 right of round badge (far-right slot empty)
+  // 4 players: P1+P2 left, P3+P4 right of round badge
+  const CARD_W = '25vw';
+
+  const p1 = playerList[0] || null;
+  const p2 = playerList[1] || null;
+  const p3 = playerList[2] || null;
+  const p4 = playerList[3] || null;
+
   const PlayerCard = ({ player }) => (
     <div
       className="flex items-center justify-center gap-1 sm:gap-2 px-1 sm:px-2 py-2"
-      style={{ opacity: player.alive ? 1 : 0.4, minWidth: 0 }}
+      style={{
+        opacity: player.alive ? 1 : 0.4,
+        width: CARD_W,
+        flexShrink: 0,
+        boxSizing: 'border-box',
+        minWidth: 0,
+      }}
     >
       <MiniMowerIcon color={COLOR_MAP[player.color]||'#16A34A'} crashed={player.crashed} />
-      <div className="text-center min-w-0">
+      <div className="text-center min-w-0 overflow-hidden">
         <p className="font-bold truncate" style={{ fontSize:'clamp(9px,1.5vw,13px)' }}>
           {player.name}{player.id===myId?' (Kamu)':''}
         </p>
@@ -223,13 +235,9 @@ export const TopBar = ({ players, myId, round, isMuted, onToggleMute }) => {
           <div style={{
             background: player.heldPowerUp ? 'rgba(234,179,8,0.25)' : 'rgba(255,255,255,0.05)',
             border: `1.5px solid ${player.heldPowerUp ? 'rgba(253,224,71,0.6)' : 'rgba(255,255,255,0.15)'}`,
-            borderRadius: 6,
-            padding: '1px 3px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            minWidth: 22,
-            minHeight: 22,
+            borderRadius: 6, padding: '1px 3px',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            minWidth: 22, minHeight: 22,
           }}>
             <PowerUpBadge type={player.heldPowerUp} size={18} />
           </div>
@@ -237,47 +245,64 @@ export const TopBar = ({ players, myId, round, isMuted, onToggleMute }) => {
       </div>
     </div>
   );
-  
+
+  const EmptySlot = () => (
+    <div style={{ width: CARD_W, flexShrink: 0 }} />
+  );
+
+  const BORDER = '2px solid #14532d';
+
   return (
-    <div className="bg-green-900 text-white shadow-lg relative flex-shrink-0">
-      <div className="flex items-stretch justify-between" style={{ minHeight:72 }}>
-        {/* Left side players */}
-        <div className="flex items-stretch">
-          {leftPlayers.map((player, idx) => (
-            <div key={player.id} className={`border-r-2 border-black ${idx === 0 ? '' : ''}`} style={{ borderWidth:2 }}>
-              <PlayerCard player={player} />
-            </div>
-          ))}
+    <div className="bg-green-900 text-white shadow-lg relative flex-shrink-0" style={{ minHeight: 72 }}>
+      {/*
+        Layout: [P1][P2] | [center 50vw for round badge] | [P3][P4]
+        Each card is exactly 25vw. The center area is 50vw (2 empty card slots).
+        Round badge is absolutely centered over the whole bar.
+      */}
+      <div className="flex items-stretch w-full" style={{ minHeight: 72 }}>
+
+        {/* Left side: always 2 slots = 50vw */}
+        <div className="flex items-stretch flex-shrink-0">
+          {p1
+            ? <div style={{ borderRight: BORDER }}><PlayerCard player={p1} /></div>
+            : <div style={{ width: CARD_W, flexShrink: 0, borderRight: BORDER }} />
+          }
+          {p2
+            ? <div style={{ borderRight: BORDER }}><PlayerCard player={p2} /></div>
+            : <div style={{ width: CARD_W, flexShrink: 0, borderRight: BORDER }} />
+          }
         </div>
-        
-        {/* Center spacer for round indicator */}
-        <div className="flex-shrink-0" style={{ width: 'clamp(60px, 10vw, 100px)' }} />
-        
-        {/* Right side players */}
-        <div className="flex items-stretch">
-          {rightPlayers.map((player, idx) => (
-            <div key={player.id} className={`border-l-2 border-black ${idx === rightPlayers.length - 1 ? '' : 'border-r-2'}`} style={{ borderWidth:2 }}>
-              <PlayerCard player={player} />
-            </div>
-          ))}
+
+        {/* Center spacer: 50vw — round badge floats here via absolute */}
+        <div style={{ width: '50vw', flexShrink: 0 }} />
+
+        {/* Right side: always 2 slots = 50vw (may be empty) */}
+        <div className="flex items-stretch flex-shrink-0">
+          {p3
+            ? <div style={{ borderLeft: BORDER }}><PlayerCard player={p3} /></div>
+            : <EmptySlot />
+          }
+          {p4
+            ? <div style={{ borderLeft: BORDER }}><PlayerCard player={p4} /></div>
+            : <EmptySlot />
+          }
         </div>
       </div>
-      
-      {/* Round indicator - centered */}
+
+      {/* Round badge — absolutely centered */}
       <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-20">
         <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-yellow-400 border-4 border-white flex items-center justify-center shadow-lg">
           <span className="text-black font-black text-sm sm:text-lg">{round}</span>
         </div>
       </div>
-      
-      {/* Mute button */}
+
+      {/* Mute button — top right */}
       {onToggleMute && (
         <button
           onClick={onToggleMute}
           title={isMuted ? 'Nyalakan Musik' : 'Matikan Musik'}
           aria-label={isMuted ? 'Nyalakan Musik' : 'Matikan Musik'}
           className="absolute top-2 right-2 w-8 h-8 flex items-center justify-center rounded-lg bg-green-800 hover:bg-green-700 border border-green-600 transition-colors z-10"
-          style={{ flexShrink: 0 }}
         >
           {isMuted ? (
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" width="16" height="16">
