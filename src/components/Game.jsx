@@ -182,23 +182,16 @@ function useCellSize() {
       const isMobile = window.innerWidth <= 1024;
       const vw = window.innerWidth;
       const vh = window.innerHeight;
-      
-      // Improved mobile calculation
       const topBarHeight = 72;
-      const mobileControlsHeight = isMobile ? 140 : 0;
-      const desktopControlsHeight = isMobile ? 0 : 36;
-      const padding = isMobile ? 8 : 16;
-      
-      const usableW = vw - (padding * 2);
-      const usableH = vh - topBarHeight - (isMobile ? mobileControlsHeight : desktopControlsHeight) - (padding * 2);
-      
+      // On mobile, controls are fixed overlays — don't subtract their height
+      const bottomBar = isMobile ? 0 : 36; // desktop keyboard hint bar
+      const padding = isMobile ? 4 : 16;
+      const usableW = vw - padding * 2;
+      const usableH = vh - topBarHeight - bottomBar - padding * 2;
       const byW = Math.floor(usableW / GRID_SIZE);
       const byH = Math.floor(usableH / GRID_SIZE);
-      
-      // Better size constraints for mobile
-      const minSize = isMobile ? 24 : 28;
-      const maxSize = isMobile ? 56 : 72;
-      
+      const minSize = isMobile ? 28 : 28;
+      const maxSize = isMobile ? 64 : 72;
       setCellSize(Math.max(minSize, Math.min(byW, byH, maxSize)));
     };
     calc();
@@ -423,10 +416,10 @@ const Game = ({ onExit }) => {
   const MY_ID = myPlayerId;
 
   return (
-    <div className="min-h-screen w-full bg-green-800 flex flex-col select-none overflow-hidden touch-none">
+    <div className="h-screen w-full bg-green-800 flex flex-col select-none overflow-hidden touch-none">
       <TopBar players={players} myId={MY_ID} round={round} isMuted={isMuted} onToggleMute={toggleMute} />
 
-      <div className="flex-1 flex items-center justify-center relative overflow-hidden p-1 sm:p-2">
+      <div className="flex-1 flex items-center justify-center relative overflow-hidden p-1 sm:p-2" style={{ minHeight: 0 }}>
         <div className="relative flex-shrink-0"
           style={{ width: GRID_SIZE * cellSize, height: GRID_SIZE * cellSize }}>
 

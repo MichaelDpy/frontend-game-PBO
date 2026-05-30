@@ -192,124 +192,146 @@ export const PlayerMower = ({ player, pos, cellSize, isMe }) => {
 
 export const TopBar = ({ players, myId, round, isMuted, onToggleMute }) => {
   const playerList = players || [];
+  const count = playerList.length;
 
-  // Fixed card width = 25vw always, regardless of player count.
-  // Slots: [P1][P2] [ROUND] [P3][P4]
-  // 2 players: P1 left, P2 right of round badge
-  // 3 players: P1+P2 left, P3 right of round badge (far-right slot empty)
-  // 4 players: P1+P2 left, P3+P4 right of round badge
-  const CARD_W = '25vw';
+  // Layout rules:
+  // 2 players → 2 equal halves (50% each), P1 left, P2 right, round badge in center gap
+  // 3 players → 3 equal thirds (33.33% each), P1+P2 left, P3 right, round badge between P2 and P3
+  // 4 players → 4 equal quarters (25% each), P1+P2 left, P3+P4 right, round badge in center gap
+  // Round badge sits in the gap between left group and right group — never overlaps a card.
 
-  const p1 = playerList[0] || null;
-  const p2 = playerList[1] || null;
-  const p3 = playerList[2] || null;
-  const p4 = playerList[3] || null;
+  const slotPct = count <= 2 ? 50 : count === 3 ? 33.333 : 25;
 
-  const PlayerCard = ({ player }) => (
-    <div
-      className="flex items-center justify-center gap-1 sm:gap-2 px-1 sm:px-2 py-2"
-      style={{
-        opacity: player.alive ? 1 : 0.4,
-        width: CARD_W,
-        flexShrink: 0,
-        boxSizing: 'border-box',
-        minWidth: 0,
-      }}
-    >
+  // Left group: first half of players (1 for 2p, 2 for 3p/4p)
+  const leftCount  = count <= 2 ? 1 : 2;
+  const rightCount = count - leftCount;
+  const leftPlayers  = playerList.slice(0, leftCount);
+  const rightPlayers = playerList.slice(leftCount, count);
+
+  // Wood style matching WoodenButton component
+  const WOOD_BG = `
+    linear-gradient(180deg, rgba(255,255,255,0.08) 0%, transparent 50%, rgba(0,0,0,0.15) 100%),
+    repeating-linear-gradient(
+      90deg,
+      #d97706 0px, #d97706 3px,
+      #b45309 3px, #b45309 6px,
+      #92400e 6px, #92400e 9px
+    )
+  `;
+  const WOOD_BORDER = '1px solid #78350f';
+
+  const PlayerCard = ({ player, isLast }) => (
+    <div style={{
+      width: `${slotPct}%`,
+      flexShrink: 0,
+      background: WOOD_BG,
+      borderRight: isLast ? 'none' : WOOD_BORDER,
+      boxShadow: isLast ? 'none' : 'inset -1px 0 0 rgba(255,255,255,0.1)',
+      opacity: player.alive ? 1 : 0.5,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      gap: 4, padding: '4px 6px', boxSizing: 'border-box', minHeight: 72,
+    }}>
       <MiniMowerIcon color={COLOR_MAP[player.color]||'#16A34A'} crashed={player.crashed} />
-      <div className="text-center min-w-0 overflow-hidden">
-        <p className="font-bold truncate" style={{ fontSize:'clamp(9px,1.5vw,13px)' }}>
+      <div style={{ textAlign: 'center', minWidth: 0, overflow: 'hidden' }}>
+        <p style={{ fontWeight: 700, fontSize: 'clamp(8px,1.4vw,12px)', color: 'white',
+          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+          textShadow: '1px 1px 2px rgba(0,0,0,0.8)', margin: 0 }}>
           {player.name}{player.id===myId?' (Kamu)':''}
         </p>
-        <p className="text-yellow-400 font-bold" style={{ fontSize:'clamp(8px,1.2vw,11px)' }}>
+        <p style={{ color: '#FCD34D', fontWeight: 700, fontSize: 'clamp(7px,1.1vw,10px)',
+          textShadow: '1px 1px 2px rgba(0,0,0,0.8)', margin: '1px 0' }}>
           {player.grassCutThisRound ?? player.grassCut} grass
         </p>
-        <div className="flex justify-center gap-0.5">
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 2 }}>
           {[0,1].map(i => (
             i < player.lives
-              ? <FaHeart key={i} style={{ color:'#EF4444', fontSize:'clamp(9px,1.5vw,14px)' }} />
-              : <FaHeartBroken key={i} style={{ color:'#6B7280', fontSize:'clamp(9px,1.5vw,14px)' }} />
+              ? <FaHeart key={i} style={{ color:'#EF4444', fontSize:'clamp(8px,1.4vw,13px)' }} />
+              : <FaHeartBroken key={i} style={{ color:'#6B7280', fontSize:'clamp(8px,1.4vw,13px)' }} />
           ))}
         </div>
-        <div className="flex justify-center items-center mt-0.5">
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: 2 }}>
           <div style={{
-            background: player.heldPowerUp ? 'rgba(234,179,8,0.25)' : 'rgba(255,255,255,0.05)',
-            border: `1.5px solid ${player.heldPowerUp ? 'rgba(253,224,71,0.6)' : 'rgba(255,255,255,0.15)'}`,
-            borderRadius: 6, padding: '1px 3px',
+            background: player.heldPowerUp ? 'rgba(234,179,8,0.3)' : 'rgba(0,0,0,0.2)',
+            border: `1.5px solid ${player.heldPowerUp ? 'rgba(253,224,71,0.7)' : 'rgba(255,255,255,0.2)'}`,
+            borderRadius: 5, padding: '1px 2px',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            minWidth: 22, minHeight: 22,
+            minWidth: 20, minHeight: 20,
           }}>
-            <PowerUpBadge type={player.heldPowerUp} size={18} />
+            <PowerUpBadge type={player.heldPowerUp} size={16} />
           </div>
         </div>
       </div>
     </div>
   );
 
-  const EmptySlot = () => (
-    <div style={{ width: CARD_W, flexShrink: 0 }} />
-  );
-
-  const BORDER = '2px solid #14532d';
+  // Round badge width — fixed so it never overlaps cards
+  const BADGE_W = 52;
 
   return (
-    <div className="bg-green-900 text-white shadow-lg relative flex-shrink-0" style={{ minHeight: 72 }}>
-      {/*
-        Layout: [P1][P2] | [center 50vw for round badge] | [P3][P4]
-        Each card is exactly 25vw. The center area is 50vw (2 empty card slots).
-        Round badge is absolutely centered over the whole bar.
-      */}
-      <div className="flex items-stretch w-full" style={{ minHeight: 72 }}>
+    <div style={{
+      background: '#78350f', color: 'white',
+      boxShadow: '0 2px 8px rgba(0,0,0,0.5)',
+      flexShrink: 0, position: 'relative',
+      display: 'flex', alignItems: 'stretch',
+      minHeight: 72, width: '100%',
+      borderBottom: '3px solid #451a03',
+    }}>
+      {/* Left group */}
+      <div style={{ display: 'flex', alignItems: 'stretch', flex: leftCount }}>
+        {leftPlayers.map((p, i) => (
+          <PlayerCard key={p.id} player={p} isLast={i === leftPlayers.length - 1} />
+        ))}
+      </div>
 
-        {/* Left side: always 2 slots = 50vw */}
-        <div className="flex items-stretch flex-shrink-0">
-          {p1
-            ? <div style={{ borderRight: BORDER }}><PlayerCard player={p1} /></div>
-            : <div style={{ width: CARD_W, flexShrink: 0, borderRight: BORDER }} />
-          }
-          {p2
-            ? <div style={{ borderRight: BORDER }}><PlayerCard player={p2} /></div>
-            : <div style={{ width: CARD_W, flexShrink: 0, borderRight: BORDER }} />
-          }
-        </div>
-
-        {/* Center spacer: 50vw — round badge floats here via absolute */}
-        <div style={{ width: '50vw', flexShrink: 0 }} />
-
-        {/* Right side: always 2 slots = 50vw (may be empty) */}
-        <div className="flex items-stretch flex-shrink-0">
-          {p3
-            ? <div style={{ borderLeft: BORDER }}><PlayerCard player={p3} /></div>
-            : <EmptySlot />
-          }
-          {p4
-            ? <div style={{ borderLeft: BORDER }}><PlayerCard player={p4} /></div>
-            : <EmptySlot />
-          }
+      {/* Center gap — round badge lives here */}
+      <div style={{
+        width: BADGE_W, flexShrink: 0,
+        background: '#451a03',
+        borderLeft: WOOD_BORDER, borderRight: WOOD_BORDER,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        boxShadow: 'inset 0 0 8px rgba(0,0,0,0.4)',
+      }}>
+        <div style={{
+          width: 40, height: 40, borderRadius: '50%',
+          background: '#EAB308', border: '3px solid white',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          boxShadow: '0 2px 6px rgba(0,0,0,0.4)',
+        }}>
+          <span style={{ color: '#1F2937', fontWeight: 900, fontSize: 'clamp(12px,2vw,18px)' }}>{round}</span>
         </div>
       </div>
 
-      {/* Round badge — absolutely centered */}
-      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-20">
-        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-yellow-400 border-4 border-white flex items-center justify-center shadow-lg">
-          <span className="text-black font-black text-sm sm:text-lg">{round}</span>
-        </div>
+      {/* Right group */}
+      <div style={{ display: 'flex', alignItems: 'stretch', flex: rightCount || 1 }}>
+        {rightPlayers.map((p, i) => (
+          <PlayerCard key={p.id} player={p} isLast={i === rightPlayers.length - 1} />
+        ))}
+        {/* Empty slots if right group has fewer than expected */}
+        {count === 2 && (
+          <div style={{ flex: 1, background: '#92400e', opacity: 0.5 }} />
+        )}
       </div>
 
-      {/* Mute button — top right */}
+      {/* Mute button — top right, above everything */}
       {onToggleMute && (
         <button
           onClick={onToggleMute}
           title={isMuted ? 'Nyalakan Musik' : 'Matikan Musik'}
           aria-label={isMuted ? 'Nyalakan Musik' : 'Matikan Musik'}
-          className="absolute top-2 right-2 w-8 h-8 flex items-center justify-center rounded-lg bg-green-800 hover:bg-green-700 border border-green-600 transition-colors z-10"
+          style={{
+            position: 'absolute', top: 6, right: 6,
+            width: 28, height: 28, borderRadius: 8,
+            background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.2)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', zIndex: 10, flexShrink: 0,
+          }}
         >
           {isMuted ? (
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" width="16" height="16">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" width="14" height="14">
               <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>
             </svg>
           ) : (
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" width="16" height="16">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" width="14" height="14">
               <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
             </svg>
           )}
@@ -336,7 +358,7 @@ export const QuizOverlay = ({ quizState, myId, onAnswer }) => {
   }, [timeLeft, answered]);
 
   return (
-    <div className="absolute inset-0 bg-black/70 flex items-center justify-center z-50 p-3">
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-3">
       <div className="bg-green-900 border-4 border-yellow-400 rounded-2xl p-4 sm:p-6 w-full max-w-lg shadow-2xl">
         <div className="flex justify-between items-center mb-3">
           <h2 className="text-yellow-300 font-black text-base sm:text-xl"
@@ -386,59 +408,61 @@ export const GameOverScreen = ({ players, leaderboard, winnerId, myId, round, on
   const rankMedal = ['🥇', '🥈', '🥉', '4️⃣'];
 
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-      <div className="absolute inset-0 bg-blue-800 opacity-80" />
-      <div className="relative z-10 text-center w-full max-w-2xl">
-        <h1 className="font-black text-white mb-3"
+    <div className="fixed inset-0 z-50 overflow-y-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+      <div className="absolute inset-0 bg-blue-800/90" />
+      <div className="relative z-10 flex flex-col items-center justify-start min-h-full p-4 py-8">
+        <h1 className="font-black text-white mb-3 text-center"
           style={{ fontFamily:'"Comic Sans MS",sans-serif',
             fontSize:'clamp(2.5rem,8vw,4rem)', textShadow:'4px 4px 0 #1e40af' }}>
           GAME OVER
         </h1>
 
-        {winner && (
-          <div className="bg-yellow-400/20 border-4 border-yellow-400 rounded-2xl p-4 mb-4">
-            <p className="text-yellow-300 text-xl font-black mb-1">🏆 Pemenang!</p>
-            <MiniMowerIcon color={COLOR_MAP[winner.color]||'#16A34A'} crashed={false} />
-            <p className="text-white text-2xl font-black mt-1">{winner.name}{winner.id===myId?' (Kamu)':''}</p>
-            <p className="text-white/80 text-sm mt-1">
-              {winner.roundsSurvived} ronde · {winner.grassCut} rumput
-            </p>
-          </div>
-        )}
-
-        <div className="bg-white/10 rounded-2xl border-2 border-white/20 overflow-hidden mb-4">
-          <div className="bg-white/10 px-4 py-2 border-b border-white/20">
-            <p className="text-yellow-300 font-black text-sm tracking-widest">PAPAN PERINGKAT</p>
-          </div>
-          {ranked.map((p, i) => (
-            <div key={p.id}
-              className={`flex items-center gap-3 px-4 py-3 border-b border-white/10 last:border-b-0 ${
-                p.id === myId ? 'bg-yellow-400/10' : ''
-              }`}>
-              <span className="text-2xl w-8 flex-shrink-0">{rankMedal[i] || `${i+1}.`}</span>
-              <MiniMowerIcon color={COLOR_MAP[p.color]||'#16A34A'} crashed={false} />
-              <div className="flex-1 text-left min-w-0">
-                <p className="text-white font-bold text-sm truncate">
-                  {p.name}{p.id===myId?' (Kamu)':''}
-                </p>
-                <p className="text-white/60 text-xs">
-                  {p.roundsSurvived} ronde · {p.grassCut} rumput
-                </p>
-              </div>
-              {i === 0 && <span className="text-yellow-300 font-black text-xs">WINNER</span>}
+        <div className="w-full max-w-2xl">
+          {winner && (
+            <div className="bg-yellow-400/20 border-4 border-yellow-400 rounded-2xl p-4 mb-4 text-center">
+              <p className="text-yellow-300 text-xl font-black mb-1">🏆 Pemenang!</p>
+              <MiniMowerIcon color={COLOR_MAP[winner.color]||'#16A34A'} crashed={false} />
+              <p className="text-white text-2xl font-black mt-1">{winner.name}{winner.id===myId?' (Kamu)':''}</p>
+              <p className="text-white/80 text-sm mt-1">
+                {winner.roundsSurvived} ronde · {winner.grassCut} rumput
+              </p>
             </div>
-          ))}
-        </div>
+          )}
 
-        <div className="flex gap-3 justify-center flex-wrap">
-          <button onClick={onRetry}
-            className="px-6 py-3 bg-green-500 hover:bg-green-400 text-white font-black text-lg rounded-xl border-4 border-green-300 transition-all">
-            MAIN LAGI
-          </button>
-          <button onClick={onExit}
-            className="px-6 py-3 bg-red-600 hover:bg-red-500 text-white font-black text-lg rounded-xl border-4 border-red-400 transition-all">
-            EXIT
-          </button>
+          <div className="bg-white/10 rounded-2xl border-2 border-white/20 overflow-hidden mb-4">
+            <div className="bg-white/10 px-4 py-2 border-b border-white/20">
+              <p className="text-yellow-300 font-black text-sm tracking-widest text-center">PAPAN PERINGKAT</p>
+            </div>
+            {ranked.map((p, i) => (
+              <div key={p.id}
+                className={`flex items-center gap-3 px-4 py-3 border-b border-white/10 last:border-b-0 ${
+                  p.id === myId ? 'bg-yellow-400/10' : ''
+                }`}>
+                <span className="text-2xl w-8 flex-shrink-0">{rankMedal[i] || `${i+1}.`}</span>
+                <MiniMowerIcon color={COLOR_MAP[p.color]||'#16A34A'} crashed={false} />
+                <div className="flex-1 text-left min-w-0">
+                  <p className="text-white font-bold text-sm truncate">
+                    {p.name}{p.id===myId?' (Kamu)':''}
+                  </p>
+                  <p className="text-white/60 text-xs">
+                    {p.roundsSurvived} ronde · {p.grassCut} rumput
+                  </p>
+                </div>
+                {i === 0 && <span className="text-yellow-300 font-black text-xs">WINNER</span>}
+              </div>
+            ))}
+          </div>
+
+          <div className="flex gap-3 justify-center flex-wrap pb-4">
+            <button onClick={onRetry}
+              className="px-6 py-3 bg-green-500 hover:bg-green-400 text-white font-black text-lg rounded-xl border-4 border-green-300 transition-all">
+              MAIN LAGI
+            </button>
+            <button onClick={onExit}
+              className="px-6 py-3 bg-red-600 hover:bg-red-500 text-white font-black text-lg rounded-xl border-4 border-red-400 transition-all">
+              EXIT
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -454,51 +478,102 @@ export const MobileControls = ({ onDirection, onActivatePowerUp, heldPowerUp, ph
     return () => window.removeEventListener('resize', check);
   }, []);
   if (!isMobile) return null;
+
   const isPlaying = phase === 'PLAYING';
+
   const touch = (dir) => (e) => { e.preventDefault(); if (isPlaying) onDirection(dir); };
   const touchPU = (e) => { e.preventDefault(); if (isPlaying) onActivatePowerUp(); };
+
+  const BTN = 52; // button size px
+  const GAP = 5;
+
   const dBtn = (dir, label) => (
-    <button onTouchStart={touch(dir)} style={{
-      display:'flex', alignItems:'center', justifyContent:'center',
-      width:48, height:48, borderRadius:10, touchAction:'none', cursor:'pointer',
-      userSelect:'none', background:'rgba(59,130,246,0.85)',
-      border:'2px solid rgba(147,197,253,0.7)', fontSize:20, fontWeight:'bold',
-      opacity: isPlaying ? 1 : 0.4, color:'white',
-    }}>{label}</button>
+    <button
+      onTouchStart={touch(dir)}
+      onTouchEnd={(e) => e.preventDefault()}
+      style={{
+        width: BTN, height: BTN,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        borderRadius: 12, touchAction: 'none', userSelect: 'none',
+        background: 'rgba(30,60,120,0.72)',
+        border: '2px solid rgba(147,197,253,0.55)',
+        fontSize: 22, fontWeight: 'bold', color: 'white',
+        opacity: isPlaying ? 1 : 0.45,
+        WebkitTapHighlightColor: 'transparent',
+      }}
+    >{label}</button>
   );
 
-  const puLabels = { ROCK:'BATU', BOMB:'BOM', SPEED_BOOST:'BOOST' };
+  const puLabels = { ROCK: 'BATU', BOMB: 'BOM', SPEED_BOOST: 'BOOST' };
   const puLabel = heldPowerUp ? puLabels[heldPowerUp] || '' : '';
 
   return (
-    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between',
-      padding:'8px 12px', background:'rgba(0,0,0,0.4)', minHeight:140, gap:12 }}>
-      <div style={{ display:'grid', gridTemplateColumns:'48px 48px 48px',
-        gridTemplateRows:'48px 48px 48px', gap:6 }}>
-        <div />{dBtn('up','↑')}<div />
-        {dBtn('left','←')}
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'center',
-          width:48, height:48, borderRadius:10, background:'rgba(59,130,246,0.3)',
-          border:'2px solid rgba(147,197,253,0.3)', fontSize:18, color:'white' }}>+</div>
-        {dBtn('right','→')}
-        <div />{dBtn('down','↓')}<div />
+    <>
+      {/* D-pad — fixed bottom-left, overlays the game */}
+      <div style={{
+        position: 'fixed',
+        bottom: 20,
+        left: 16,
+        zIndex: 100,
+        display: 'grid',
+        gridTemplateColumns: `${BTN}px ${BTN}px ${BTN}px`,
+        gridTemplateRows: `${BTN}px ${BTN}px ${BTN}px`,
+        gap: GAP,
+        pointerEvents: 'auto',
+      }}>
+        <div />{dBtn('up', '↑')}<div />
+        {dBtn('left', '←')}
+        <div style={{
+          width: BTN, height: BTN, borderRadius: 12,
+          background: 'rgba(30,60,120,0.35)',
+          border: '2px solid rgba(147,197,253,0.25)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: 'rgba(255,255,255,0.4)', fontSize: 18,
+        }}>+</div>
+        {dBtn('right', '→')}
+        <div />{dBtn('down', '↓')}<div />
       </div>
-      <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:4 }}>
-        <p style={{ color:'rgba(255,255,255,0.7)', fontSize:10, fontWeight:700, textAlign:'center' }}>
+
+      {/* Power-up button — fixed bottom-right, overlays the game */}
+      <div style={{
+        position: 'fixed',
+        bottom: 20,
+        right: 16,
+        zIndex: 100,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 4,
+        pointerEvents: 'auto',
+      }}>
+        <p style={{
+          color: 'rgba(255,255,255,0.75)', fontSize: 10, fontWeight: 700,
+          textAlign: 'center', margin: 0,
+          textShadow: '0 1px 3px rgba(0,0,0,0.8)',
+        }}>
           {heldPowerUp ? 'AKTIFKAN' : 'POWER-UP'}
         </p>
-        <button onTouchStart={touchPU} style={{
-          display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
-          width:72, height:72, borderRadius:16, touchAction:'none', cursor:'pointer', gap:2,
-          background: heldPowerUp ? 'rgba(234,179,8,0.9)' : 'rgba(234,179,8,0.3)',
-          border:`3px solid ${heldPowerUp?'rgba(253,224,71,0.9)':'rgba(253,224,71,0.3)'}`,
-          opacity: isPlaying ? 1 : 0.4,
-        }}>
-          <PowerUpIcon type={heldPowerUp} size={32} />
-          {puLabel && <span style={{ fontSize:8, color:'#1a1a1a', fontWeight:900 }}>{puLabel}</span>}
+        <button
+          onTouchStart={touchPU}
+          onTouchEnd={(e) => e.preventDefault()}
+          style={{
+            width: 76, height: 76, borderRadius: 20,
+            touchAction: 'none', cursor: 'pointer',
+            display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center', gap: 2,
+            background: heldPowerUp ? 'rgba(180,130,0,0.82)' : 'rgba(100,80,0,0.45)',
+            border: `3px solid ${heldPowerUp ? 'rgba(253,224,71,0.9)' : 'rgba(253,224,71,0.3)'}`,
+            opacity: isPlaying ? 1 : 0.45,
+            WebkitTapHighlightColor: 'transparent',
+          }}
+        >
+          <PowerUpIcon type={heldPowerUp} size={34} />
+          {puLabel && <span style={{ fontSize: 8, color: '#fff', fontWeight: 900, textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>{puLabel}</span>}
         </button>
-        <p style={{ color:'rgba(255,255,255,0.5)', fontSize:9 }}>{heldPowerUp ? '' : 'Kosong'}</p>
+        <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 9, margin: 0 }}>
+          {heldPowerUp ? '' : 'Kosong'}
+        </p>
       </div>
-    </div>
+    </>
   );
 };
